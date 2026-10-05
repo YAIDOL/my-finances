@@ -32,7 +32,7 @@ SECURITY DEFINER попередження advisor стосується навм�
 
 ## Публікація
 
-Адреса сайту: https://yaidol.github.io/my-finances/. Workflow main запускає тести, збірку та deployment. Підтвердження публікації цього оновлення додається після завершення GitHub Actions.
+Адреса сайту: https://yaidol.github.io/my-finances/. Workflow main запускає тести, збірку та deployment. [Публікація коду 5b9f5c1](https://github.com/YAIDOL/my-finances/actions/runs/37379844764) завершилась успішно. На живій сторінці відкрито «Мої категорії»: відображено 12 категорій витрат, а asset `index-DaP3VbqZ.js` відповідає перевіреній збірці. Особисті фінансові записи користувача під час браузерних перевірок не змінювалися.
 
 ## Межі
 

@@ -11,6 +11,6 @@
 - [x] Add category management and controlled operation/account editors; use category colors in journal, budget and analytics.
 - [x] Extend Supabase shape constraint and versioned RPC with backward-compatible reads and stale-client write protection; verify RLS with two disposable test identities.
 - [x] Run seeded random tests across all operations and exercise unusual UI inputs, state changes and every existing section.
-- [ ] Fix reproduced defects, run full tests and production build, update docs, commit/push and verify live GitHub Pages.
+- [x] Fix reproduced defects, run full tests and production build, update docs, commit/push and verify live GitHub Pages.
 
 **Validation:** Unit regressions first; randomized sequences preserve account, debt and reservation invariants; rejected actions leave source state untouched. Browser checks must cover method switching, category creation/editing, account creation, transaction editing, responsive navigation and theme. Cloud checks verify category persistence and owner isolation. Never test against a real user's finances.
