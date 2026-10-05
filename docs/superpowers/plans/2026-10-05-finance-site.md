@@ -45,7 +45,8 @@ Run meaningful domain/auth tests, TypeScript and production build, then browser 
 ## Progress
 
 - Plan and architecture: complete.
-- Domain: pending.
-- Supabase: pending; user connection requested.
-- Interface: pending.
-- Verification and publication: pending.
+- Domain: complete; 51 domain/auth tests pass, including edit/archive/payment regressions.
+- Supabase: project created, migration applied, nickname auth configured; real two-user persistence/isolation/concurrency QA passed.
+- Interface: complete; dark/light/system themes, responsive navigation, reduced motion, manual finance flows and safe edits.
+- Verification: TypeScript and production build pass; demo and real cloud save/reload checked in browser; independent code review complete.
+- Publication: code pushed to YAIDOL/my-finances, public Supabase variables configured. GitHub Pages deployment delayed by the confirmed GitHub Actions runner incident on 2026-10-05. A compiled gh-pages fallback was also requested and entered the same runner queue.
