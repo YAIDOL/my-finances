@@ -3,6 +3,11 @@ export function normalizeNickname(nickname: string): string {
   return nickname.trim().toLowerCase();
 }
 
+/** User-editable Auth metadata must not crash the application or serve as authorization. */
+export function displayNickname(value: unknown): string {
+  return typeof value === 'string' && !validateNickname(value) ? normalizeNickname(value) : 'Мій облік';
+}
+
 export function validateNickname(nickname: string): string | null {
   return /^[A-Za-z0-9_]{3,24}$/.test(nickname.trim())
     ? null

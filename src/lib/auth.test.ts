@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { nicknameToEmail, normalizeNickname, passwordStrength, validateNickname, validatePassword } from './auth';
+import { createEmptyState } from './finance';
+import { displayNickname, nicknameToEmail, normalizeNickname, passwordStrength, validateNickname, validatePassword } from './auth';
 
 describe('nickname authentication', () => {
   it('maps nickname case and surrounding space to the same login identity', () => {
@@ -27,14 +28,14 @@ describe('cloud boundary without configuration', () => {
     expect(cloud.isSupabaseConfigured).toBe(false);
     expect(cloud.supabase).toBeNull();
     await expect(cloud.loadFinanceState('user-id')).rejects.toThrow(/Supabase/);
-    await expect(cloud.saveFinanceState({ accounts: [], transactions: [], goals: [], debts: [], payments: [], budgets: [] }, 0)).rejects.toThrow(/Supabase/);
+    await expect(cloud.saveFinanceState(createEmptyState(), 0, '11111111-1111-4111-8111-111111111111')).rejects.toThrow(/Supabase/);
     await expect(cloud.signInWithNickname('alice', 'abc123')).rejects.toThrow(/Supabase/);
     await expect(cloud.signUpWithNickname('alice', 'abc123')).rejects.toThrow(/Supabase/);
   });
 });
 
 describe('cloud request and failure handling', () => {
-  const emptyState = { accounts: [], transactions: [], goals: [], debts: [], payments: [], budgets: [] };
+  const emptyState = createEmptyState();
   const user = { id: 'user-1', aud: 'authenticated', role: 'authenticated', email: 'alice@users.my-finances.invalid', created_at: '2026-10-05T00:00:00Z', app_metadata: {}, user_metadata: { username: 'alice' } };
   beforeEach(() => {
     vi.resetModules();
@@ -66,14 +67,14 @@ describe('cloud request and failure handling', () => {
       return new Response('8', { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
     const cloud = await import('./supabase');
-    expect(await cloud.saveFinanceState(emptyState, 7)).toBe(8);
-    expect(requestBody).toEqual({ p_state: emptyState, p_expected_version: 7 });
+    expect(await cloud.saveFinanceState(emptyState, 7, '11111111-1111-4111-8111-111111111111')).toBe(8);
+    expect(requestBody).toEqual({ p_state: emptyState, p_expected_version: 7, p_expected_user_id: '11111111-1111-4111-8111-111111111111' });
   });
 
   it('surfaces a version conflict with an actionable Ukrainian error', async () => {
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ code: 'P0001', message: 'FINANCE_VERSION_CONFLICT', details: null, hint: null }), { status: 409, headers: { 'Content-Type': 'application/json' } }));
     const cloud = await import('./supabase');
-    await expect(cloud.saveFinanceState(emptyState, 0)).rejects.toMatchObject({ code: 'FINANCE_CONFLICT', message: expect.stringMatching(/Оновіть/) });
+    await expect(cloud.saveFinanceState(emptyState, 0, '11111111-1111-4111-8111-111111111111')).rejects.toMatchObject({ code: 'FINANCE_CONFLICT', message: expect.stringMatching(/Оновіть/) });
   });
 
   it('does not interpret a failed cloud read as an empty account', async () => {

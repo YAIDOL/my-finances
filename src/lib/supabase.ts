@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { nicknameToEmail, normalizeNickname, validateNickname, validatePassword } from './auth';
 import type { FinanceState } from './types';
+import { createEmptyState, restoreFinanceState } from './finance';
 
 const url = (import.meta.env.VITE_SUPABASE_URL || '').trim();
 const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
@@ -24,6 +25,8 @@ export class FinanceConflictError extends Error {
 
 function requestError(error: { message?: string; code?: string; status?: number }, action: string): Error {
   if (error.message?.includes('FINANCE_VERSION_CONFLICT')) return new FinanceConflictError();
+  if (error.message?.includes('FINANCE_CLIENT_OUTDATED')) return new Error('Доступне оновлення сайту. Перезавантаж сторінку, щоб безпечно зберегти категорії.');
+  if (error.message?.includes('FINANCE_OWNER_MISMATCH')) return new Error('Обліковий запис змінився. Дані не збережено. Перезавантаж сторінку перед наступною дією.');
   if (error.code === 'invalid_credentials') return new Error('Неправильний нікнейм або пароль.');
   if (error.code === 'user_already_exists' || error.code === 'email_exists') return new Error('Цей нікнейм уже зайнято. Виберіть інший.');
   if (error.code === 'email_not_confirmed') return new Error('Вхід недоступний: адміністратор має вимкнути підтвердження електронної пошти в Supabase.');
@@ -62,11 +65,11 @@ const stateKeys = ['accounts', 'transactions', 'goals', 'debts', 'payments', 'bu
 function isFinanceState(value: unknown): value is FinanceState {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return Object.keys(record).length === stateKeys.length && stateKeys.every((name) => Array.isArray(record[name]));
+  return Object.keys(record).every(name=>[...stateKeys,'categories'].includes(name)) && stateKeys.every((name) => Array.isArray(record[name])) && (!Object.hasOwn(record,'categories') || Array.isArray(record.categories));
 }
 
 function emptyState(): FinanceState {
-  return { accounts: [], transactions: [], goals: [], debts: [], payments: [], budgets: [] };
+  return createEmptyState();
 }
 
 export async function loadFinanceState(userId: string): Promise<{ state: FinanceState; version: number }> {
@@ -81,15 +84,15 @@ export async function loadFinanceState(userId: string): Promise<{ state: Finance
   if (!isFinanceState(data.state) || !Number.isSafeInteger(data.version) || data.version < 0) {
     throw new Error('Хмарні дані мають невідомий формат. Зверніться до адміністратора; дані не перезаписано.');
   }
-  return { state: data.state, version: data.version };
+  return { state: restoreFinanceState(data.state), version: data.version };
 }
 
-export async function saveFinanceState(state: FinanceState, expectedVersion: number): Promise<number> {
+export async function saveFinanceState(state: FinanceState, expectedVersion: number, expectedUserId: string): Promise<number> {
   const db = client();
-  if (!isFinanceState(state) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+  if (!isFinanceState(state) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedUserId)) {
     throw new Error('Не вдалося зберегти дані: неприпустимий формат або версія.');
   }
-  const { data, error } = await db.rpc('save_finance_state', { p_state: state, p_expected_version: expectedVersion });
+  const { data, error } = await db.rpc('save_finance_state', { p_state: state, p_expected_version: expectedVersion, p_expected_user_id: expectedUserId });
   if (error) throw requestError(error, 'зберегти фінансові дані');
   if (!Number.isSafeInteger(data) || data !== expectedVersion + 1) throw new Error('Сервер не підтвердив нову версію. Оновіть сторінку перед наступною зміною.');
   return data;

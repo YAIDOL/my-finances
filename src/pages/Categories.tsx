@@ -1,0 +1,11 @@
+import { useState } from 'react';
+import { Pencil, Search, LockKeyhole } from 'lucide-react';
+import { CategoryEditor } from '../components/CategoryEditor';
+import { AddButton, PageTitle, Empty, type ViewProps } from '../components/ui';
+import type { Category } from '../lib/types';
+
+export function Categories({state,mutate,busy}:ViewProps){
+ const [edit,setEdit]=useState<Category|'new'|null>(null),[kind,setKind]=useState<Category['kind']>('expense'),[search,setSearch]=useState('');
+ const categories=state.categories.filter(c=>c.kind===kind&&c.name.toLocaleLowerCase('uk-UA').includes(search.toLocaleLowerCase('uk-UA')));
+ return <><PageTitle title="Мої категорії" description="Власні назви та кольори для витрат і надходжень." action={<AddButton onClick={()=>setEdit('new')}>Створити категорію</AddButton>}/><div className="category-private-note"><LockKeyhole size={16}/><span>Категорії зберігаються у твоєму обліковому записі. Інші користувачі їх не бачать.</span></div><div className="category-toolbar"><div className="transaction-tabs page-tabs"><button className={kind==='expense'?'active':''} onClick={()=>setKind('expense')}>Витрати</button><button className={kind==='income'?'active':''} onClick={()=>setKind('income')}>Надходження</button></div><div className="search-field"><Search size={18}/><input aria-label="Пошук категорій" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Знайти категорію…"/></div></div>{categories.length?<div className="category-grid">{categories.map(c=><article className="panel category-card" key={c.id}><span className="category-dot large" style={{background:c.color}}/><div><h2>{c.name}</h2><p>{kind==='expense'?'Категорія витрат':'Джерело надходження'}</p></div><button className="icon-button" aria-label={'Редагувати категорію '+c.name} disabled={busy} onClick={()=>setEdit(c)}><Pencil size={18}/></button></article>)}</div>:<Empty title="Категорій не знайдено" description="Зміни пошук або створи власну категорію."/>}<p className="analysis-note">Зміни назви й кольору одразу застосовуються до попередніх записів, лімітів та аналітики. Суми залишаються ті самі.</p>{edit&&<CategoryEditor key={edit==='new'?'new':edit.id} mutate={mutate} category={edit==='new'?undefined:edit} onClose={()=>setEdit(null)}/>}</>;
+}
