@@ -5,6 +5,18 @@ export const COLORS=['navy','steel','forest','violet'];
 export const uid=()=>crypto.randomUUID();
 export function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 export const currentMonth=()=>today().slice(0,7);
+export function updateTransaction(s:FinanceState,id:string,input:Omit<Transaction,'id'>){
+ const previous=s.transactions.find(t=>t.id===id);
+ if(!previous||previous.debtId||previous.paymentId||!['expense','income','transfer'].includes(previous.kind))throw new Error('Пов’язану операцію потрібно змінювати через її борг або платіж.');
+ if(input.debtId||input.paymentId||!['expense','income','transfer'].includes(input.kind))throw new Error('Обери звичайну витрату, надходження або переказ.');
+ const without={...s,transactions:s.transactions.filter(t=>t.id!==id)};
+ const validated=addTransaction(without,input).transactions[0];
+ return {...s,transactions:s.transactions.map(t=>t.id===id?{...validated,id}:t)};
+}
+export function reactivateAccount(s:FinanceState,id:string){
+ if(!s.accounts.some(a=>a.id===id))throw new Error('Рахунок не знайдено.');
+ return ensureState({...s,accounts:s.accounts.map(a=>a.id===id?{...a,archived:false}:a)});
+}
 export const money=(amount:number)=>new Intl.NumberFormat('uk-UA',{style:'currency',currency:'UAH',maximumFractionDigits:amount%100?2:0}).format(amount/100);
 export function parseMoney(input:string,allowZero=false){const value=input.trim().replace(/[\s\u00a0]/g,'').replace(',','.');if(!/^\d+(\.\d{1,2})?$/.test(value))throw new Error('Введи суму з точністю до копійки.');const [a,b='']=value.split('.');const result=Number(a)*100+Number(b.padEnd(2,'0'));if(!Number.isSafeInteger(result)||result>100000000000||(!allowZero&&result===0))throw new Error('Вкажи додатну суму до 1 мільярда гривень.');return result;}
 export function createEmptyState():FinanceState{return {accounts:[],transactions:[],goals:[],debts:[],payments:[],budgets:[]};}
