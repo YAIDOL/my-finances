@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Archive, Landmark, Banknote, ArrowDownLeft, ArrowUpRight, Check } from 'lucide-react';
+import { Archive, Landmark, ArrowDownLeft, ArrowUpRight, Check } from 'lucide-react';
 import { AddButton, Amount, Empty, PageTitle, Modal, type ViewProps, type Mutate } from '../components/ui';
+import { CashAccount } from '../components/CashAccount';
 import { TransactionEditor, ACCOUNT_TYPE_LABEL } from '../components/TransactionEditor';
 import type { Account } from '../lib/types';
 import { accountAvailable, accountBalance, accountReserved, addAccount, archiveAccount, reactivateAccount, COLORS } from '../lib/finance';
@@ -10,7 +11,7 @@ export function Accounts({state,mutate,hide,busy}:ViewProps){
  const accounts=state.accounts.filter(a=>!a.archived);
  return <><PageTitle title="Картки та рахунки" description="Спочатку створи рахунок, а потім окремо запиши надходження або витрату." action={<AddButton onClick={()=>setOpen(true)}>Створити рахунок</AddButton>}/>
   {accounts.length?<div className="account-grid">{accounts.map(a=><article className="panel account-detail" key={a.id}>
-   <div className={'bank-card '+a.color}><div className="flex-between"><span>{a.name}</span>{a.type==='cash'?<Banknote size={21}/>:<Landmark size={19}/>}</div><div className="card-middle"><Amount value={accountBalance(state,a.id)} hide={hide}/>{a.type==='card'&&<div className="chip"/>}</div><small>{a.type==='card'&&a.lastFour?'•••• '+a.lastFour+' · ':''}{ACCOUNT_TYPE_LABEL[a.type]} · UAH</small></div>
+   {a.type==='cash'?<CashAccount name={a.name} balance={accountBalance(state,a.id)} hide={hide} color={a.color}/>:<div className={'bank-card '+a.color}><div className="flex-between"><span>{a.name}</span><Landmark size={19}/></div><div className="card-middle"><Amount value={accountBalance(state,a.id)} hide={hide}/>{a.type==='card'&&<div className="chip"/>}</div><small>{a.type==='card'&&a.lastFour?'•••• '+a.lastFour+' · ':''}{ACCOUNT_TYPE_LABEL[a.type]} · UAH</small></div>}
    <div className="account-info"><div><span>Відкладено та зарезервовано</span><Amount value={accountReserved(state,a.id)} hide={hide}/></div><div><span>Доступно</span><Amount value={accountAvailable(state,a.id)} hide={hide}/></div></div>
    <div className="account-money-actions"><button className="button primary" disabled={busy} onClick={()=>setOperation({id:a.id,kind:'income'})}><ArrowDownLeft size={17}/> Додати гроші</button><button className="button secondary" disabled={busy} onClick={()=>setOperation({id:a.id,kind:'expense'})}><ArrowUpRight size={17}/> Списати гроші</button></div>
    <button className="text-button muted" disabled={busy} onClick={()=>mutate(s=>archiveAccount(s,a.id),'Рахунок архівовано')}><Archive size={15}/> Архівувати порожній рахунок</button>
