@@ -1,5 +1,7 @@
 import type { Account, Debt, FinanceState, Goal, Payment, Transaction } from './types';
 import { defaultCategories, findCategory, normalizedCategoryName } from './categories';
+import { emptyAssistance, validAssistance } from './assistance';
+import { validDate } from './dates';
 export { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_COLORS, defaultCategories, findCategory, categoryName, categoryColor, categoryOptions, addCategory, updateCategory } from './categories';
 export const COLORS=['navy','steel','forest','violet'];
 export const uid=()=>crypto.randomUUID();
@@ -19,7 +21,7 @@ export function reactivateAccount(s:FinanceState,id:string){
 }
 export const money=(amount:number)=>new Intl.NumberFormat('uk-UA',{style:'currency',currency:'UAH',maximumFractionDigits:amount%100?2:0}).format(amount/100);
 export function parseMoney(input:string,allowZero=false){const value=input.trim().replace(/[\s\u00a0]/g,'').replace(',','.');if(!/^\d+(\.\d{1,2})?$/.test(value))throw new Error('Введи суму з точністю до копійки.');const [a,b='']=value.split('.');const result=Number(a)*100+Number(b.padEnd(2,'0'));if(!Number.isSafeInteger(result)||result>100000000000||(!allowZero&&result===0))throw new Error('Вкажи додатну суму до 1 мільярда гривень.');return result;}
-export function createEmptyState():FinanceState{return {accounts:[],transactions:[],goals:[],debts:[],payments:[],budgets:[],categories:defaultCategories()};}
+export function createEmptyState():FinanceState{return {accounts:[],transactions:[],goals:[],debts:[],payments:[],budgets:[],categories:defaultCategories(),assistance:emptyAssistance()};}
 const copy=(s:FinanceState):FinanceState=>structuredClone(s);
 function amount(n:number){if(!Number.isSafeInteger(n)||n<=0||n>100000000000)throw new Error('Некоректна сума.');}
 function account(s:FinanceState,id:string){const a=s.accounts.find(a=>a.id===id&&!a.archived);if(!a)throw new Error('Обери активний рахунок.');return a;}
@@ -57,20 +59,15 @@ export function repayDebt(s:FinanceState,id:string,accountId:string,value:number
 export function addPayment(s:FinanceState,input:Omit<Payment,'id'>){amount(input.amount);account(s,input.accountId);if(!input.name.trim())throw new Error('Вкажи назву платежу.');if(input.status!=='planned')throw new Error('Новий платіж має бути запланованим.');return restoreFinanceState({...s,payments:[...s.payments,{...input,id:uid()}]});}
 export function payPayment(s:FinanceState,id:string){const n=copy(s),p=n.payments.find(p=>p.id===id);if(!p||p.status==='paid')throw new Error('Платіж уже оплачений.');p.status='paid';const d=p.debtId?n.debts.find(d=>d.id===p.debtId):undefined;if(p.debtId&&(!d||p.amount>debtRemaining(n,p.debtId)))throw new Error('Перевір залишок боргу.');return addTransaction(n,{kind:d?(d.direction==='payable'?'repay-payable':'repay-receivable'):'expense',amount:p.amount,accountId:p.accountId,category:p.category,note:p.name,date:today(),paymentId:id,debtId:p.debtId});}
 export function cancelPayment(s:FinanceState,id:string){const p=s.payments.find(p=>p.id===id);if(!p||p.status!=='planned')throw new Error('Можна скасувати лише запланований платіж.');return {...s,payments:s.payments.filter(p=>p.id!==id)};}
-export function archiveAccount(s:FinanceState,id:string){if(s.payments.some(p=>p.accountId===id&&p.status==='planned'))throw new Error('Спочатку скасуй або перенеси заплановані платежі цього рахунку.');if(accountBalance(s,id)!==0||accountReserved(s,id)!==0)throw new Error('Перед закриттям перенеси гроші та вивільни резерви.');const n=copy(s);const a=n.accounts.find(a=>a.id===id);if(a)a.archived=true;return n;}
-function validDate(v:unknown,optional=false):boolean{
- if(optional&&v==='')return true;
- if(typeof v!=='string'||!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v)||v.startsWith('0000'))return false;
- const d=new Date(v+'T00:00:00Z');return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===v;
-}
+export function archiveAccount(s:FinanceState,id:string){if(s.assistance?.recurring.some(r=>r.accountId===id&&!r.paused))throw new Error('Спочатку зупини або перенеси повторювані платежі цього рахунку.');if(s.payments.some(p=>p.accountId===id&&p.status==='planned'))throw new Error('Спочатку скасуй або перенеси заплановані платежі цього рахунку.');if(accountBalance(s,id)!==0||accountReserved(s,id)!==0)throw new Error('Перед закриттям перенеси гроші та вивільни резерви.');const n=copy(s);const a=n.accounts.find(a=>a.id===id);if(a)a.archived=true;return n;}
 export function restoreFinanceState(input:unknown):FinanceState{
  const fail=():never=>{throw new Error('Резервна копія має некоректний формат або суперечливі суми.');};
  if(!input||typeof input!=='object'||Array.isArray(input))return fail();
  const record=input as Record<string,unknown>,legacy=!Object.hasOwn(record,'categories');
  const keys=['accounts','transactions','goals','debts','payments','budgets'] as const;
- if(Object.keys(record).some(k=>![...keys,'categories'].includes(k))||!keys.every(k=>Array.isArray(record[k])&&(record[k] as unknown[]).length<=5000))return fail();
+ if(Object.keys(record).some(k=>![...keys,'categories','assistance'].includes(k))||!keys.every(k=>Array.isArray(record[k])&&(record[k] as unknown[]).length<=5000))return fail();
  if(!legacy&&(!Array.isArray(record.categories)||record.categories.length>200))return fail();
- const s=structuredClone(input) as FinanceState;if(legacy)s.categories=defaultCategories();
+ const s=structuredClone(input) as FinanceState;if(legacy)s.categories=defaultCategories();if(!Object.hasOwn(record,'assistance'))s.assistance=emptyAssistance();
  const text=(v:unknown,max=200):v is string=>typeof v==='string'&&v.length<=max&&!/[\p{Cc}\p{Cf}]/u.test(v);
  const num=(v:unknown,zero=false)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=(zero?0:1)&&v<=100000000000;
  for(const key of [...keys,'categories'] as const){const ids=new Set<string>();for(const item of s[key]){if(!item||typeof item!=='object'||!text(item.id)||!item.id||ids.has(item.id))return fail();ids.add(item.id);}}
@@ -89,7 +86,7 @@ export function restoreFinanceState(input:unknown):FinanceState{
   if(a.type!=='card')a.lastFour='';
  }
  const acct=(id:unknown)=>typeof id==='string'&&s.accounts.some(a=>a.id===id);
- for(const d of s.debts)if(!text(d.person,60)||!d.person.trim()||!['payable','receivable'].includes(d.direction)||!num(d.principal)||!validDate(d.date)||!validDate(d.dueDate,true)||!text(d.note))return fail();
+ for(const d of s.debts)if(!text(d.person,60)||!d.person.trim()||!['payable','receivable'].includes(d.direction)||!num(d.principal)||!validDate(d.date)||!validDate(d.dueDate,true)||d.remindOn!==undefined&&!validDate(d.remindOn,true)||!text(d.note))return fail();
  for(const t of s.transactions){
   if(!['income','expense','transfer','borrow','lend','repay-payable','repay-receivable'].includes(t.kind)||!num(t.amount)||!acct(t.accountId)||!text(t.category)||!text(t.note)||!validDate(t.date))return fail();
   const a=s.accounts.find(a=>a.id===t.accountId)!;
@@ -113,6 +110,7 @@ export function restoreFinanceState(input:unknown):FinanceState{
   if(p.status==='paid'&&(linked.length!==1||linked[0].amount!==p.amount||linked[0].accountId!==p.accountId||linked[0].debtId!==p.debtId||!p.debtId&&linked[0].category!==p.category||linked[0].kind!==(p.debtId?(s.debts.find(d=>d.id===p.debtId)!.direction==='payable'?'repay-payable':'repay-receivable'):'expense'))||p.status==='planned'&&linked.length!==0)return fail();
  }
  const limits=new Set<string>();for(const b of s.budgets){if(!text(b.category)||!num(b.limit)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(b.month))return fail();b.category=resolve(b.category,'expense');const key=b.month+':'+b.category;if(limits.has(key))return fail();limits.add(key);}
+ if(!validAssistance(s.assistance,s))return fail();
  for(const d of s.debts)if(debtRemaining(s,d.id)<0)return fail();
  for(const t of s.transactions)if(t.paymentId&&!s.payments.some(p=>p.id===t.paymentId&&p.status==='paid'))return fail();
  for(const a of s.accounts)if(!Number.isSafeInteger(accountBalance(s,a.id))||!Number.isSafeInteger(accountReserved(s,a.id)))return fail();

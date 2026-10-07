@@ -7,17 +7,17 @@ import { addTransaction, updateTransaction, categoryColor, categoryOptions, find
 
 export const ACCOUNT_TYPE_LABEL:Record<PaymentMethod,string>={card:'Банківська картка',cash:'Готівка',savings:'Ощадний рахунок'};
 type OrdinaryKind='expense'|'income'|'transfer';
-interface Props {open:boolean;onClose:()=>void;state:FinanceState;mutate:Mutate;transaction?:Transaction;initialKind?:OrdinaryKind;initialAccountId?:string;hide?:boolean}
+interface Props {open:boolean;onClose:()=>void;state:FinanceState;mutate:Mutate;transaction?:Transaction;initialKind?:OrdinaryKind;initialAccountId?:string;initialValues?:Omit<Transaction,'id'>;hide?:boolean}
 export function TransactionEditor(props:Props){return props.open?<OperationForm key={props.transaction?.id||`${props.initialKind||'expense'}-${props.initialAccountId||''}`} {...props}/>:null;}
-function OperationForm({onClose,state,mutate,transaction,initialKind='expense',initialAccountId,hide}:Props){
+function OperationForm({onClose,state,mutate,transaction,initialKind='expense',initialAccountId,initialValues,hide}:Props){
  const initialAccount=state.accounts.find(a=>a.id===(transaction?.accountId||initialAccountId))||state.accounts.find(a=>!a.archived);
  const [kind,setKind]=useState<OrdinaryKind>(transaction?.kind as OrdinaryKind||initialKind);
  const [method,setMethod]=useState<PaymentMethod>(initialAccount?.type||'card');
  const [accountId,setAccountId]=useState(initialAccount?.id||'');
  const [toAccountId,setToAccountId]=useState(transaction?.toAccountId||'');
- const [amount,setAmount]=useState(transaction?String(transaction.amount/100):'');
- const [category,setCategory]=useState(transaction?findCategory(state,transaction.category)?.id||'':categoryOptions(state,initialKind==='income'?'income':'expense')[0]?.value||'');
- const [date,setDate]=useState(transaction?.date||today()),[note,setNote]=useState(transaction?.note||'');
+ const [amount,setAmount]=useState(transaction?String(transaction.amount/100):initialValues?.amount?String(initialValues.amount/100):'');
+ const [category,setCategory]=useState(transaction?findCategory(state,transaction.category)?.id||'':initialValues?.category||categoryOptions(state,initialKind==='income'?'income':'expense')[0]?.value||'');
+ const [date,setDate]=useState(transaction?.date||today()),[note,setNote]=useState(transaction?.note||initialValues?.note||'');
  const [saving,setSaving]=useState(false),[error,setError]=useState(''),[creating,setCreating]=useState(false);
  const accounts=state.accounts.filter(a=>!a.archived&&a.type===method),destinations=state.accounts.filter(a=>!a.archived&&a.id!==accountId);
  const selected=accounts.find(a=>a.id===accountId),destination=destinations.find(a=>a.id===toAccountId);

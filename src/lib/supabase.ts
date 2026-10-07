@@ -25,7 +25,7 @@ export class FinanceConflictError extends Error {
 
 function requestError(error: { message?: string; code?: string; status?: number }, action: string): Error {
   if (error.message?.includes('FINANCE_VERSION_CONFLICT')) return new FinanceConflictError();
-  if (error.message?.includes('FINANCE_CLIENT_OUTDATED')) return new Error('Доступне оновлення сайту. Перезавантаж сторінку, щоб безпечно зберегти категорії.');
+  if (error.message?.includes('FINANCE_CLIENT_OUTDATED')) return new Error('Доступне оновлення сайту. Перезавантаж сторінку, щоб безпечно зберегти категорії, записи й інструменти.');
   if (error.message?.includes('FINANCE_OWNER_MISMATCH')) return new Error('Обліковий запис змінився. Дані не збережено. Перезавантаж сторінку перед наступною дією.');
   if (error.code === 'invalid_credentials') return new Error('Неправильний нікнейм або пароль.');
   if (error.code === 'user_already_exists' || error.code === 'email_exists') return new Error('Цей нікнейм уже зайнято. Виберіть інший.');
@@ -65,7 +65,7 @@ const stateKeys = ['accounts', 'transactions', 'goals', 'debts', 'payments', 'bu
 function isFinanceState(value: unknown): value is FinanceState {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return Object.keys(record).every(name=>[...stateKeys,'categories'].includes(name)) && stateKeys.every((name) => Array.isArray(record[name])) && (!Object.hasOwn(record,'categories') || Array.isArray(record.categories));
+  return Object.keys(record).every(name=>[...stateKeys,'categories','assistance'].includes(name)) && stateKeys.every((name) => Array.isArray(record[name])) && (!Object.hasOwn(record,'categories') || Array.isArray(record.categories)) && (!Object.hasOwn(record,'assistance') || !!record.assistance && typeof record.assistance==='object' && !Array.isArray(record.assistance));
 }
 
 function emptyState(): FinanceState {
