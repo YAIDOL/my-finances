@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, Plus } from 'lucide-react';
 import { Modal, type Mutate } from './ui';
 import { CategoryCreator } from './CategoryEditor';
+import { ExpenseSplitFields, type SplitField } from './ExpenseSplitFields';
 import type { FinanceState, PaymentMethod, Transaction } from '../lib/types';
 import { addTransaction, updateTransaction, categoryColor, categoryOptions, findCategory, parseMoney, today, accountAvailable, money } from '../lib/finance';
 
@@ -19,28 +20,31 @@ function OperationForm({onClose,state,mutate,transaction,initialKind='expense',i
  const [category,setCategory]=useState(transaction?findCategory(state,transaction.category)?.id||'':initialValues?.category||categoryOptions(state,initialKind==='income'?'income':'expense')[0]?.value||'');
  const [date,setDate]=useState(transaction?.date||today()),[note,setNote]=useState(transaction?.note||initialValues?.note||'');
  const [saving,setSaving]=useState(false),[error,setError]=useState(''),[creating,setCreating]=useState(false);
+ const [split,setSplit]=useState(!!transaction?.splits),[parts,setParts]=useState<SplitField[]>(transaction?.splits?.map(p=>({category:p.category,amount:String(p.amount/100)}))||categoryOptions(state,'expense').slice(0,2).map(p=>({category:p.value,amount:''})));
  const accounts=state.accounts.filter(a=>!a.archived&&a.type===method),destinations=state.accounts.filter(a=>!a.archived&&a.id!==accountId);
  const selected=accounts.find(a=>a.id===accountId),destination=destinations.find(a=>a.id===toAccountId);
  const categories=categoryOptions(state,kind==='income'?'income':'expense');
  const title=transaction?'Редагувати запис':kind==='expense'?'Списати гроші':kind==='income'?'Додати гроші':'Переказати між рахунками';
- function changeKind(next:OrdinaryKind){setKind(next);setError('');setCreating(false);if(next!=='transfer')setCategory(categoryOptions(state,next)[0]?.value||'');}
+ function changeKind(next:OrdinaryKind){setKind(next);setError('');setCreating(false);if(next!=='expense')setSplit(false);if(next!=='transfer')setCategory(categoryOptions(state,next)[0]?.value||'');}
  function changeMethod(next:PaymentMethod){setMethod(next);setAccountId(state.accounts.find(a=>!a.archived&&a.type===next)?.id||'');setError('');}
  async function submit(e:React.FormEvent){e.preventDefault();if(saving||creating)return;setError('');setSaving(true);try{
   if(!selected)throw new Error('Створи рахунок для вибраного способу оплати.');
   if(kind==='transfer'&&!destination)throw new Error('Обери рахунок, на який переказуєш.');
-  const input={kind,amount:parseMoney(amount),accountId:selected.id,paymentMethod:method,toAccountId:kind==='transfer'?destination!.id:undefined,category:kind==='transfer'?'':category,date,note};
+  const splits=kind==='expense'&&split?parts.map(p=>({category:p.category,amount:parseMoney(p.amount)})):undefined;
+  const input={kind,amount:parseMoney(amount),accountId:selected.id,paymentMethod:method,toAccountId:kind==='transfer'?destination!.id:undefined,category:kind==='transfer'?'':splits?.[0].category||category,date,note,splits};
   if(await mutate(s=>transaction?updateTransaction(s,transaction.id,input):addTransaction(s,input),transaction?'Запис оновлено':'Операцію записано'))onClose();
  }catch(e){setError(e instanceof Error?e.message:'Не вдалося зберегти.');}finally{setSaving(false);}}
  return <Modal open onClose={()=>{if(!saving&&!creating)onClose();}} title={title}><form onSubmit={submit}>
   <fieldset className="editor-fieldset" disabled={saving||creating}>
    <div className="transaction-tabs" role="group" aria-label="Тип операції">{(['expense','income','transfer'] as const).map(k=><button type="button" aria-pressed={kind===k} key={k} onClick={()=>changeKind(k)} className={kind===k?'active':''}>{k==='expense'?'Витрата':k==='income'?'Надходження':'Переказ'}</button>)}</div>
-   <p className="form-description">{kind==='transfer'?'Перенеси гроші між власними рахунками. Переказ не рахується доходом або витратою.':'Створення рахунку та запис грошей — окремі дії. Тут змінюється його баланс.'}</p>
+   <p className="form-description">{kind==='transfer'?'Перенеси гроші між власними рахунками. Переказ не рахується доходом або витратою.':'Запиши новий рух грошей. Початковий залишок задається при створенні рахунку.'}</p>
    <div className="form-fields">
-    <label>Сума, ₴<input name="amount" inputMode="decimal" placeholder="0,00" required maxLength={30} value={amount} onChange={e=>setAmount(e.target.value)}/></label>
+    <label>Сума, ₴<input name="amount" type={hide?'password':'text'} inputMode="decimal" placeholder="0,00" required maxLength={30} value={amount} onChange={e=>setAmount(e.target.value)}/></label>
     <label>{kind==='transfer'?'Тип рахунку відправника':'Спосіб оплати'}<select name="paymentMethod" value={method} onChange={e=>changeMethod(e.target.value as PaymentMethod)}>{Object.entries(ACCOUNT_TYPE_LABEL).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
     <label>{method==='cash'?'Готівковий рахунок':kind==='transfer'?'Звідки':method==='card'?'Картка':'Ощадний рахунок'}<select name="accountId" required value={selected?.id||''} onChange={e=>setAccountId(e.target.value)}><option value="" disabled>Обери рахунок</option>{accounts.map(a=><option value={a.id} key={a.id}>{a.name}</option>)}</select>{selected&&<small>Доступно: {hide?'••••• ₴':money(accountAvailable(state,selected.id))}</small>}</label>
     {!accounts.length&&<p className="form-info">{method==='cash'?'Готівкового рахунку ще немає. Створи його у розділі «Картки».':`Рахунку типу «${ACCOUNT_TYPE_LABEL[method]}» ще немає. Створи його у розділі «Картки».`}</p>}
-    {kind==='transfer'?<label>Куди<select name="toAccountId" required value={destination?.id||''} onChange={e=>setToAccountId(e.target.value)}><option value="" disabled>Обери інший рахунок</option>{destinations.map(a=><option key={a.id} value={a.id}>{a.name} · {ACCOUNT_TYPE_LABEL[a.type]}</option>)}</select></label>:<label><span className="category-label"><span className="category-dot" style={{background:categoryColor(state,category)}}/>{kind==='income'?'Джерело надходження':'Категорія витрати'}</span><select name="category" required value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option value={c.value} key={c.value}>{c.label}</option>)}</select><button type="button" className="text-button inline-category-add" onClick={()=>setCreating(true)}><Plus size={15}/> Створити власну категорію</button></label>}
+    {kind==='transfer'?<label>Куди<select name="toAccountId" required value={destination?.id||''} onChange={e=>setToAccountId(e.target.value)}><option value="" disabled>Обери інший рахунок</option>{destinations.map(a=><option key={a.id} value={a.id}>{a.name} · {ACCOUNT_TYPE_LABEL[a.type]}</option>)}</select></label>:!split&&<label><span className="category-label"><span className="category-dot" style={{background:categoryColor(state,category)}}/>{kind==='income'?'Джерело надходження':'Категорія витрати'}</span><select name="category" required value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option value={c.value} key={c.value}>{c.label}</option>)}</select><button type="button" className="text-button inline-category-add" onClick={()=>setCreating(true)}><Plus size={15}/> Створити власну категорію</button></label>}
+    {kind==='expense'&&<><button type="button" className="button secondary split-toggle" aria-pressed={split} onClick={()=>setSplit(!split)}>{split?'Одна категорія':'Розділити за категоріями'}</button>{split&&<ExpenseSplitFields state={state} parts={parts} onChange={setParts} total={amount} hide={hide}/>}</>}
     <label>Дата<input name="date" type="date" required value={date} onChange={e=>setDate(e.target.value)}/></label>
     <label>Примітка<input name="note" placeholder="Необов’язково" maxLength={200} value={note} onChange={e=>setNote(e.target.value)}/></label>
    </div>

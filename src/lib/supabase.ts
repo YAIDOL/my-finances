@@ -65,7 +65,7 @@ const stateKeys = ['accounts', 'transactions', 'goals', 'debts', 'payments', 'bu
 function isFinanceState(value: unknown): value is FinanceState {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return Object.keys(record).every(name=>[...stateKeys,'categories','assistance'].includes(name)) && stateKeys.every((name) => Array.isArray(record[name])) && (!Object.hasOwn(record,'categories') || Array.isArray(record.categories)) && (!Object.hasOwn(record,'assistance') || !!record.assistance && typeof record.assistance==='object' && !Array.isArray(record.assistance));
+  return Object.keys(record).every(name=>[...stateKeys,'categories','assistance','formatVersion'].includes(name)) && (!Object.hasOwn(record,'formatVersion')||record.formatVersion===2) && stateKeys.every((name) => Array.isArray(record[name])) && (!Object.hasOwn(record,'categories') || Array.isArray(record.categories)) && (!Object.hasOwn(record,'assistance') || !!record.assistance && typeof record.assistance==='object' && !Array.isArray(record.assistance));
 }
 
 function emptyState(): FinanceState {
