@@ -1,0 +1,4 @@
+[functions.delete-account]
+# Authentication is mandatory in handler.ts via server-side auth.getUser().
+# Supports current signing keys without relying on the legacy gateway JWT parser.
+verify_jwt = false

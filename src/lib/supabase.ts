@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { nicknameToEmail, normalizeNickname, validateNickname, validatePassword } from './auth';
 import type { FinanceState } from './types';
 import { createEmptyState, restoreFinanceState } from './finance';
+import { forgetDeletedSession } from './deleted-session';
 
 const url = (import.meta.env.VITE_SUPABASE_URL || '').trim();
 const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
@@ -59,6 +60,26 @@ export async function signInWithNickname(nickname: string, password: string) {
 export async function signOut(): Promise<void> {
   const { error } = await client().auth.signOut();
   if (error) throw requestError(error, 'вийти');
+}
+
+export async function deleteOwnAccount(password:string,expectedUserId:string,confirmation:string):Promise<void>{
+ const invalid=validatePassword(password);if(invalid)throw new Error(invalid);
+ if(confirmation!=='ВИДАЛИТИ')throw new Error('Для підтвердження введи слово ВИДАЛИТИ.');
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedUserId))throw new Error('Сеанс змінився. Увійди знову.');
+ const db=client();const {data:auth,error:authError}=await db.auth.getUser();
+ if(authError||auth.user?.id!==expectedUserId)throw new Error('Сеанс змінився. Увійди знову перед видаленням акаунта.');
+ const {data,error}=await db.functions.invoke('delete-account',{body:{password,expectedUserId,confirmation}});
+ if(error){
+  let code='';try{if('context' in error&&error.context instanceof Response){const details=await error.context.json();code=details?.code||'';}}catch{}
+  if(code==='PASSWORD_INVALID')throw new Error('Неправильний пароль. Акаунт не видалено.');
+  if(code==='OWNER_MISMATCH'||code==='AUTHENTICATION_REQUIRED')throw new Error('Сеанс змінився. Увійди знову перед видаленням акаунта.');
+  if(code==='TOO_MANY_ATTEMPTS')throw new Error('Забагато спроб. Зачекай трохи й повтори.');
+  throw new Error('Не вдалося підтвердити видалення акаунта. Перевір підключення й спробуй увійти знову перед повторною дією.');
+ }
+ if(data?.deleted!==true||data.userId!==expectedUserId)throw new Error('Сервер не підтвердив видалення твого акаунта. Онови сторінку.');
+ // Global revocation is already confirmed. Never sign out a newly switched owner.
+ // Password auth uses only this SDK storage key (no PKCE or separate user storage).
+ if(typeof localStorage!=='undefined')forgetDeletedSession(localStorage,`sb-${new URL(url).hostname.split('.')[0]}-auth-token`,expectedUserId);
 }
 
 const stateKeys = ['accounts', 'transactions', 'goals', 'debts', 'payments', 'budgets'] as const;
