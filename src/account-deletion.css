@@ -3,6 +3,6 @@
 .danger-button{color:var(--negative);border:1px solid color-mix(in srgb,var(--negative) 60%,var(--line));background:color-mix(in srgb,var(--negative) 10%,var(--surface))}
 .danger-button:hover:not(:disabled){background:color-mix(in srgb,var(--negative) 18%,var(--surface))}
 .deletion-backup{margin-bottom:20px;white-space:normal;text-align:left}
-.deletion-consent{display:flex!important;align-items:flex-start;gap:10px;line-height:1.6;font-size:13px}
+.deletion-consent{display:flex!important;flex-direction:row!important;align-items:flex-start;gap:10px;line-height:1.6;font-size:13px}
 .deletion-consent input{width:18px!important;min-height:18px;flex:0 0 18px;margin-top:3px;accent-color:var(--negative)}
 @media(max-width:480px){.delete-account-panel>.button{width:100%}.deletion-backup{min-height:44px}}
