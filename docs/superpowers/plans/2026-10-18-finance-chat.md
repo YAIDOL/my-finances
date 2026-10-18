@@ -10,8 +10,8 @@
 - [x] TDD Edge authentication, owner binding, consent/body limits, quota errors, timeout/provider failure, output filtering and secret redaction.
 - [x] Add private rate-limit storage and tightly scoped RPCs with owner/session checks and no direct client table access. Verify SQL on synthetic users with rollback.
 - [x] Build responsive chat UI, initial privacy consent, suggested prompts, period plan cards, apply-preview confirmation, cancel/error states and owner-change isolation.
-- [ ] Deploy Edge Function, prepare `NVIDIA_API_KEY` through server secret configuration, and verify actual provider chat without sending real user finances.
-- [ ] Independent security/code review, full tests/typecheck/build, browser desktop/320px checks and secret scan.
-- [ ] Document setup/limits, publish to GitHub Pages, verify workflow and live build, save screenshot proof.
+- [x] Deploy Edge Function, prepare `NVIDIA_API_KEY` through server secret configuration, and verify actual provider chat without sending real user finances.
+- [x] Independent security/code review, full tests/typecheck/build, browser desktop/320px checks and secret scan.
+- [x] Document setup/limits, publish to GitHub Pages, verify workflow and live build, save screenshot proof.
 
-Edge deployed (version 2) and all configuration/auth-denial paths verified. Actual provider test remains pending direct user entry of a rotated NVIDIA_API_KEY into managed Edge Secrets; connector cannot set secrets and browser requires sign-in. No key from the user message was stored or used. Documentation explains the final setup step.
+Edge deployed (version 4). NVIDIA_API_KEY installed through the official Dashboard from the owner-provided local file, without printing or placing the value in source/client/Git. Real owner-bound Edge request returned 200 with correct 1000 UAH balance and day/week figures; synthetic account removed. Real latency probes showed 56–65 seconds, so provider deadline was raised to120seconds and recommended low reasoning/clear thinking applied. Independent followup review and all359tests/typecheck/build passed; secret scan found0credentials or server-only references in client bundles. GitHub Pages workflow39164764619 succeeded and live asset index-CX1KgChQ.js matched the build. A live browser request is also checked before handing back.
