@@ -1,8 +1,8 @@
-import type { Account, Debt, FinanceState, Goal, Payment, Transaction } from './types';
-import { defaultCategories, findCategory, normalizedCategoryName } from './categories';
-import { emptyAssistance, validAssistance } from './assistance';
-import { validDate } from './dates';
-export { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_COLORS, defaultCategories, findCategory, categoryName, categoryColor, categoryOptions, addCategory, updateCategory } from './categories';
+import type { Account, Debt, FinanceState, Goal, Payment, Transaction } from './types.ts';
+import { defaultCategories, findCategory, normalizedCategoryName } from './categories.ts';
+import { emptyAssistance, validAssistance } from './assistance.ts';
+import { validDate } from './dates.ts';
+export { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_COLORS, defaultCategories, findCategory, categoryName, categoryColor, categoryOptions, addCategory, updateCategory } from './categories.ts';
 export const COLORS=['navy','steel','forest','violet'];
 export const uid=()=>crypto.randomUUID();
 export function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}

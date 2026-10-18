@@ -1,5 +1,5 @@
-import type { Assistance, FinanceState } from './types';
-import { validDate } from './dates';
+import type { Assistance, FinanceState } from './types.ts';
+import { validDate } from './dates.ts';
 export const emptyAssistance = (): Assistance => ({templates:[],recurring:[],nextIncomeDate:''});
 export const assistanceOf = (state: FinanceState): Assistance => state.assistance || emptyAssistance();
 export function validAssistance(value: unknown, state: FinanceState): value is Assistance {

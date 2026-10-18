@@ -1,4 +1,4 @@
-import type { Category, FinanceState } from './types';
+import type { Category, FinanceState } from './types.ts';
 
 export const EXPENSE_CATEGORIES=['Продукти','Кафе та доставка','Житло','Транспорт','Здоров’я','Одяг і догляд','Навчання','Розваги','Підписки','Подорожі','Подарунки та допомога','Інше'];
 export const INCOME_CATEGORIES=['Зарплата','Підробіток','Продаж речей','Подарунки','Кешбек і бонуси','Інші надходження'];

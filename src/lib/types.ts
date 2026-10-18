@@ -17,4 +17,4 @@ export interface RecurringPayment { id: string; name: string; amount: number; ac
 export interface Assistance { templates: QuickTemplate[]; recurring: RecurringPayment[]; nextIncomeDate: string }
 export interface FinanceState { accounts: Account[]; transactions: Transaction[]; goals: Goal[]; debts: Debt[]; payments: Payment[]; budgets: Budget[]; categories: Category[]; assistance?: Assistance; formatVersion?: 2 }
 export interface Preferences { theme: Theme; reducedMotion: boolean; hideAmounts: boolean }
-export type Page = 'home' | 'accounts' | 'transactions' | 'goals' | 'debts' | 'budget' | 'analytics' | 'categories' | 'settings' | 'tools';
+export type Page = 'home' | 'accounts' | 'transactions' | 'goals' | 'debts' | 'budget' | 'analytics' | 'categories' | 'settings' | 'tools' | 'assistant';

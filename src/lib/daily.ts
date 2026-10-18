@@ -1,9 +1,9 @@
-import type { FinanceState, QuickTemplate, RecurringPayment, Transaction } from './types';
-import { accountAvailable, addPayment, addTransaction, debtRemaining, restoreFinanceState, today, totals, uid } from './finance';
-import { assistanceOf } from './assistance';
-import { addDays, daysBetween, validDate } from './dates';
-export { assistanceOf } from './assistance';
-export { addDays } from './dates';
+import type { FinanceState, QuickTemplate, RecurringPayment, Transaction } from './types.ts';
+import { accountAvailable, addPayment, addTransaction, debtRemaining, restoreFinanceState, today, totals, uid } from './finance.ts';
+import { assistanceOf } from './assistance.ts';
+import { addDays, daysBetween, validDate } from './dates.ts';
+export { assistanceOf } from './assistance.ts';
+export { addDays } from './dates.ts';
 
 function requireAccount(s:FinanceState,id:string){const a=s.accounts.find(a=>a.id===id&&!a.archived);if(!a)throw new Error('Обери активний рахунок.');return a;}
 export function saveTemplate(s:FinanceState,input:Omit<QuickTemplate,'id'>,id?:string){

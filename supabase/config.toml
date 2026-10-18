@@ -2,3 +2,7 @@
 # Authentication is mandatory in handler.ts via server-side auth.getUser().
 # Supports current signing keys without relying on the legacy gateway JWT parser.
 verify_jwt = false
+
+[functions.finance-chat]
+# Mandatory auth.getUser(), matching owner and live-session quota check in handler.
+verify_jwt = false

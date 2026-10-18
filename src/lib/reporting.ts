@@ -1,6 +1,6 @@
-import type { FinanceState } from './types';
-import { expenseParts } from './finance';
-import { validDate } from './dates';
+import type { FinanceState } from './types.ts';
+import { expenseParts } from './finance.ts';
+import { validDate } from './dates.ts';
 
 export interface BudgetWarning {
  budgetId: string;
