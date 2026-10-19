@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowUp, Calculator, Check, LockKeyhole, MessageCircle, Plus, RefreshCw, ShieldCheck, Square, Trash2 } from 'lucide-react';
-import { Amount, Modal, PageTitle, type ViewProps } from '../components/ui';
+import { ArrowUp, Calculator, Check, ChevronDown, LockKeyhole, MessageCircle, PanelLeft, Plus, RefreshCw, ShieldCheck, Square, Trash2 } from 'lucide-react';
+import { Amount, Modal, type ViewProps } from '../components/ui';
 import { categoryName, today } from '../lib/finance';
 import { categoryTotals } from '../lib/reporting';
 import { FinanceChatError, sendFinanceChat, type ChatMessage } from '../lib/ai-chat';
 import { ChatHistoryError, deleteChatThread, listChatThreads, loadChatThread, saveChatThread, type ChatThread } from '../lib/chat-history';
+import { loadChatConsent, acceptChatConsent, ChatConsentError } from '../lib/chat-consent';
 import { applyFinancePlan, buildFinancePlan, type FinancePlan, type PlanPeriod } from '../lib/ai-planner';
 import '../assistant.css';
 
@@ -34,6 +35,13 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [consent, setConsent] = useState(false);
+  const [consentReady, setConsentReady] = useState(demo);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(!demo);
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [consentError, setConsentError] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -59,6 +67,8 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
   const controller = useRef<AbortController | null>(null);
   const historyController = useRef<AbortController | null>(null);
   const persistenceController = useRef<AbortController | null>(null);
+  const consentController = useRef<AbortController | null>(null);
+  const consentRequest = useRef(0);
   const pendingInput = useRef<{ messages: ChatMessage[]; draft: string } | null>(null);
   const request = useRef(0);
   const bottom = useRef<HTMLDivElement>(null);
@@ -77,11 +87,23 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
     return () => { mounted.current = false; request.current++; controller.current?.abort(); historyController.current?.abort(); persistenceController.current?.abort(); };
   }, []);
   useEffect(() => {
+    setConsent(false);
+    setConsentReady(demo);
+    setConsentOpen(false);
+    setConsentError('');
+    setConsentSaving(false);
+    if (!demo) void initializeConsent();
+    else setConsentLoading(false);
+    return () => { consentRequest.current++; consentController.current?.abort(); };
+  }, [ownerId, demo]);
+  useEffect(() => {
     if (hide) {
       if (pendingInput.current) cancel(false);
       setPreview(null);
       setDeleteOpen(false);
       setDiscardTarget(null);
+      setHistoryOpen(false);
+      setPlanOpen(false);
       setError('');
       setStatus('');
     }
@@ -97,6 +119,66 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [unsaved]);
+
+  async function initializeConsent() {
+    consentController.current?.abort();
+    const abort = new AbortController();
+    consentController.current = abort;
+    const epoch = ++consentRequest.current;
+    setConsentLoading(true);
+    setConsentReady(false);
+    setConsentError('');
+    try {
+      const allowed = await loadChatConsent(ownerId, abort.signal);
+      if (!mounted.current || abort.signal.aborted || consentRequest.current !== epoch) return;
+      setConsent(allowed === true);
+      setConsentReady(true);
+      setConsentOpen(allowed !== true);
+    } catch (failure) {
+      if (!mounted.current || abort.signal.aborted || consentRequest.current !== epoch) return;
+      setConsent(false);
+      setConsentError(failure instanceof ChatConsentError ? failure.message : 'Не вдалося перевірити дозвіл. Повтори спробу.');
+      setConsentOpen(true);
+    } finally {
+      if (mounted.current && !abort.signal.aborted && consentRequest.current === epoch) {
+        setConsentLoading(false);
+        consentController.current = null;
+      }
+    }
+  }
+  function declineConsent() {
+    if (consentSaving) return;
+    consentRequest.current++;
+    consentController.current?.abort();
+    consentController.current = null;
+    setConsentLoading(false);
+    setConsent(false);
+    setConsentOpen(false);
+  }
+  async function confirmConsent() {
+    if (demo || hide || consentSaving || consentLoading || !consentReady || !ownerId) return;
+    const abort = new AbortController();
+    consentController.current?.abort();
+    consentController.current = abort;
+    const epoch = ++consentRequest.current;
+    setConsentSaving(true);
+    setConsentError('');
+    try {
+      await acceptChatConsent(ownerId, abort.signal);
+      if (!mounted.current || abort.signal.aborted || consentRequest.current !== epoch) return;
+      setConsent(true);
+      setConsentOpen(false);
+    } catch (failure) {
+      if (!mounted.current || abort.signal.aborted || consentRequest.current !== epoch) return;
+      setConsent(false);
+      setConsentError(failure instanceof ChatConsentError ? failure.message : 'Не вдалося зберегти дозвіл. Спробуй натиснути «Так» ще раз.');
+    } finally {
+      if (mounted.current && !abort.signal.aborted && consentRequest.current === epoch) {
+        setConsentSaving(false);
+        consentController.current = null;
+      }
+    }
+  }
 
   function cancel(announce = true) {
     request.current++;
@@ -158,7 +240,9 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
     }
   }
   function chooseThread(id: string | null) {
-    if (hide || demo || historyLoading || historySaving || deleting || (id && id === selected?.id)) return;
+    if (hide || demo || historyLoading || historySaving || deleting) return;
+    setHistoryOpen(false);
+    if (id && id === selected?.id) return;
     if (pendingSave || draft.trim() || sending) { setDiscardTarget({ id }); return; }
     void openThread(id);
   }
@@ -231,11 +315,10 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
       setSending(false);
       const snapshot: PendingSave = { id: selected?.id ?? crypto.randomUUID(), version: selected?.version ?? 0, messages: completed };
       setPendingSave(snapshot);
-      if (model === 'nvidia/nemotron-3.5-lightning-30b-a3b') setStatus('Відповідь надав резервний помічник NVIDIA Nemotron, оскільки основний помічник недоступний.');
       await persistChat(snapshot, currentRequest);
     } catch (failure) {
       if (!mounted.current || request.current !== currentRequest || abort.signal.aborted) return;
-      setError(failure instanceof FinanceChatError ? failure.message : 'Не вдалося отримати відповідь. Перевір з’єднання й спробуй ще раз.');
+      setError(failure instanceof FinanceChatError ? failure.message.replace(/NVIDIA/g, 'сервісу помічника') : 'Не вдалося отримати відповідь. Перевір з’єднання й спробуй ще раз.');
       setMessages(history.slice(0, -1));
       setDraft(content);
       pendingInput.current = null;
@@ -261,52 +344,29 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
     } finally { if (mounted.current) setSaving(false); }
   }
 
+  const composerBlocked = hide || !consent || busy || saving || historySaving || deleting || !!pendingSave || !historyReady || historyLoading || threadLoading || !!threadError || messages.length >= 200 || (!selected && threads.length >= 100);
+  const historyContent = <>
+    <div className="assistant-history-heading"><h2>Мої чати</h2><span>{threads.length} / 100</span></div>
+    <button className="button secondary full assistant-new-chat" disabled={hide || historyLoading || historySaving || deleting || !historyReady} onClick={() => chooseThread(null)}><Plus size={17}/>Новий чат</button>
+    {historyLoading && <p className="assistant-history-state" role="status">Завантажую історію…</p>}
+    {historyError && <div className="assistant-history-error" role="alert"><p>{historyError}</p><button className="text-button" onClick={() => void initializeHistory()}><RefreshCw size={14}/>Повторити</button></div>}
+    {!historyLoading && !historyError && !threads.length && <p className="assistant-history-state">Твої розмови з’являться тут після першої відповіді.</p>}
+    {threads.length >= 100 && <p className="assistant-history-state">Збережено 100 чатів. Видали розмову, щоб почати нову.</p>}
+    <nav className="assistant-thread-list" aria-label="Збережені чати">{threads.map((thread, index) => <button key={thread.id} className={`assistant-thread${selected?.id === thread.id ? ' selected' : ''}`} aria-current={selected?.id === thread.id ? 'page' : undefined} disabled={hide || historyLoading || historySaving || deleting} onClick={() => chooseThread(thread.id)}><MessageCircle size={16}/><span><strong>{hide ? `Чат ${index + 1}` : thread.title}</strong><time dateTime={thread.updatedAt}>{threadDate(thread.updatedAt)}</time></span></button>)}</nav>
+    <p className="assistant-history-note"><LockKeyhole size={13}/>Особиста історія твого акаунта</p>
+  </>;
+
   return <div className="assistant-page">
-    <PageTitle title="Фінансовий помічник" description="Розберися з витратами та склади зрозумілий план." />
-    {hide && <div className="assistant-privacy" role="status"><LockKeyhole size={20}/><div><strong>Режим приватності увімкнено</strong><p>Повідомлення, чернетку та суми приховано. Щоб написати помічнику, вимкни приховування сум у налаштуваннях.</p><button className="text-button" onClick={() => navigate('settings')}>Перейти до налаштувань →</button></div></div>}
-    {demo && <div className="assistant-demo"><Calculator size={20}/><p><strong>Демонстраційний режим.</strong> Доступний лише локальний розрахунок плану. AI-чат і передавання даних до NVIDIA вимкнені.</p></div>}
-    <div className="assistant-layout">
-      <div className={`assistant-chat-workspace${demo ? ' demo' : ''}`}>
-      {!demo && <aside className="panel assistant-history" aria-labelledby="assistant-history-title">
-        <div className="assistant-history-heading"><div><span className="assistant-eyebrow"><LockKeyhole size={14}/> Особиста історія</span><h2 id="assistant-history-title">Мої чати</h2></div><span className="assistant-history-count">{threads.length} / 100</span></div>
-        <button className="button secondary full assistant-new-chat" disabled={hide || historyLoading || historySaving || deleting || !historyReady} onClick={() => chooseThread(null)}><Plus size={16}/>Новий чат</button>
-        <p className="assistant-history-note">Збережені розмови доступні у твоєму обліковому записі на інших пристроях.</p>
-        {threads.length >= 100 && <p className="assistant-history-state">Досягнуто ліміту 100 чатів. Видали одну розмову, щоб зберегти нову.</p>}
-        {historyLoading && <p className="assistant-history-state" role="status">Завантажую історію…</p>}
-        {historyError && <div className="assistant-history-error" role="alert"><p>{historyError}</p><button className="text-button" onClick={() => void initializeHistory()}><RefreshCw size={13}/>Повторити</button></div>}
-        {!historyLoading && !historyError && !threads.length && <p className="assistant-history-state">Тут з’явиться перший чат після відповіді помічника.</p>}
-        <nav className="assistant-thread-list" aria-label="Збережені чати">{threads.map((thread, index) => <button key={thread.id} className={`assistant-thread${selected?.id === thread.id ? ' selected' : ''}`} aria-current={selected?.id === thread.id ? 'page' : undefined} disabled={hide || historyLoading || historySaving || deleting} onClick={() => chooseThread(thread.id)}><MessageCircle size={15}/><span><strong>{hide ? `Чат ${index + 1}` : thread.title}</strong><time dateTime={thread.updatedAt}>{threadDate(thread.updatedAt)} · {thread.messageCount / 2} відповідей</time></span></button>)}</nav>
-      </aside>}
-      <section className="panel assistant-chat" aria-labelledby="assistant-chat-title">
-        <div className="assistant-section-heading"><div><span className="assistant-eyebrow"><MessageCircle size={15}/> {selected ? 'Збережена розмова' : 'Новий чат'}</span><h2 id="assistant-chat-title">Запитай про свій бюджет</h2></div>{!demo && <button className="icon-button" aria-label={selected ? 'Видалити цей чат' : 'Очистити чернетку'} title={selected ? 'Видалити цей чат' : 'Очистити чернетку'} disabled={hide || historyLoading || threadLoading || historySaving || deleting || sending || (!selected && !messages.length && !draft)} onClick={() => { if (selected) { setDeleteError(''); setDeleteOpen(true); } else chooseThread(null); }}><Trash2 size={18}/></button>}</div>
-        {!demo && <div className="assistant-consent">
-          <div className="assistant-provider"><ShieldCheck size={17}/><span>NVIDIA · GLM 5.3 Flash · резерв: Nemotron 3.5 Lightning</span></div>
-          <p>Після твоєї згоди помічник передасть NVIDIA повідомлення чату та скорочений фінансовий підсумок: назви категорій і загальні суми. Якщо GLM не відповість вчасно або буде недоступний, запит отримає резервний помічник NVIDIA Nemotron. Назви рахунків, номери карток, ідентифікатори, нотатки та імена людей у боргах не передаються автоматично.</p>
-          <p>Не вписуй секретні або особисті дані в повідомлення. Завершені розмови приватно зберігаються в Supabase у твоєму обліковому записі та доступні між сеансами й пристроями. Видалити окрему розмову можна кнопкою кошика. Це не відкликає вже передані NVIDIA дані. Старі чати, які були лише в пам’яті сторінки, відновити неможливо.</p>
-          <label className="assistant-consent-check"><input type="checkbox" checked={consent} disabled={hide || sending} onChange={event => { setConsent(event.target.checked); setError(''); }}/><span>Дозволяю надсилати ці дані до NVIDIA для відповідей у чаті.</span></label>
-        </div>}
-        <div className="assistant-messages" role="log" aria-label="Повідомлення помічника" aria-live="polite" aria-relevant="additions text" aria-busy={sending}>
-          {hide ? <div className="assistant-chat-empty"><LockKeyhole size={27}/><h3>Чат приховано</h3><p>Текст повідомлень і чернетка знову з’являться після вимкнення режиму приватності.</p></div> : threadLoading || historyLoading ? <div className="assistant-chat-empty"><RefreshCw size={25}/><h3>Завантажую розмови…</h3></div> : threadError ? <div className="assistant-history-error" role="alert"><p>{threadError}</p><button className="button secondary" onClick={() => void openThread(selected?.id ?? null)}>Повторити завантаження</button></div> : messages.length ? messages.map((message, index) => <article className={`assistant-message ${message.role}`} key={index}><strong>{message.role === 'user' ? 'Ти' : message.model === 'nvidia/nemotron-3.5-lightning-30b-a3b' ? 'Помічник · резерв NVIDIA Nemotron' : message.model === 'z-ai/glm-5.3-flash' ? 'Помічник · NVIDIA GLM' : 'Помічник'}</strong><p>{message.content}</p></article>) : <div className="assistant-chat-empty"><MessageCircle size={29}/><h3>{demo ? 'Почни з локального плану' : 'З чого почнемо?'}</h3><p>{demo ? 'Обери день, тиждень або місяць у блоці планування.' : 'Попроси пояснити витрати, знайти можливості для економії або допомогти з фінансовою звичкою.'}</p></div>}
-          {sending && !hide && <p className="assistant-thinking">Помічник готує відповідь…</p>}
-          <div ref={bottom}/>
-        </div>
-        {!demo && <>
-          {!hide && pendingSave && <div className="assistant-save-notice" role={saveError ? 'alert' : 'status'}><LockKeyhole size={17}/><div><strong>{historySaving ? 'Зберігаю розмову…' : 'Відповідь ще не збережена'}</strong><p>{saveError || 'Дочекайся збереження перед наступним повідомленням.'}</p>{!historySaving && <button className="button secondary" onClick={() => void persistChat(pendingSave, request.current)}><RefreshCw size={14}/>Повторити збереження</button>}{!historySaving && saveError && selected && <button className="text-button" onClick={() => setDiscardTarget({ id: selected.id })}>Завантажити збережений чат</button>}</div></div>}
-          {!hide && messages.length >= 200 && <p className="assistant-history-state">Ліміт цього чату — 200 повідомлень. Продовж у новому чаті.</p>}
-          {!messages.length && !hide && !threadLoading && !threadError && <div className="assistant-prompts" aria-label="Приклади запитів">{prompts.map(prompt => <button key={prompt} disabled={busy || sending || saving || historyLoading || !historyReady} onClick={() => setDraft(prompt)}>{prompt}<ArrowUp size={14}/></button>)}</div>}
-          <form className="assistant-composer" onSubmit={send}>
-            <label htmlFor="assistant-draft">Твоє повідомлення</label>
-            <textarea id="assistant-draft" value={hide ? '' : draft} onChange={event => setDraft(event.target.value)} maxLength={1000} rows={3} disabled={hide || sending || busy || saving || historySaving || deleting || !!pendingSave || !historyReady || historyLoading || threadLoading || !!threadError || messages.length >= 200 || (!selected && threads.length >= 100)} placeholder={hide ? 'Чернетку приховано' : 'Наприклад: як краще розподілити залишок на місяць?'} aria-describedby="assistant-input-note"/>
-            <div className="assistant-composer-footer"><small id="assistant-input-note">{hide ? 'Текст приховано' : `${draft.length} / 1000`}{!consent && !hide && ' · Для надсилання потрібна згода'}</small>{sending ? <button type="button" className="button secondary" onClick={() => cancel()}><Square size={14}/>Зупинити</button> : <button className="button primary" disabled={hide || busy || saving || historySaving || deleting || !!pendingSave || !historyReady || historyLoading || threadLoading || !!threadError || messages.length >= 200 || (!selected && threads.length >= 100) || !consent || !ownerId || !draft.trim()}><ArrowUp size={17}/>Надіслати</button>}</div>
-          </form>
-          {!hide && error && <div className="form-error" role="alert">{error}</div>}
-          <p className="assistant-disclaimer">Відповіді AI можуть містити помилки. Перевіряй розрахунки перед фінансовими рішеннями. Чат самостійно не змінює бюджет.</p>
-        </>}
-      </section>
-      </div>
-      <section className="panel assistant-plan" aria-labelledby="assistant-plan-title">
-        <div className="assistant-section-heading"><div><span className="assistant-eyebrow"><Calculator size={15}/> Локальний розрахунок</span><h2 id="assistant-plan-title">План витрат</h2></div></div>
-        <p className="assistant-plan-intro">План на основі внесених даних. Майбутні надходження не припускаються. Розрахунок не потребує AI та не надсилає дані NVIDIA.</p>
+    {hide && <div className="assistant-privacy" role="status"><LockKeyhole size={20}/><div><strong>Режим приватності увімкнено</strong><p>Повідомлення, чернетку та суми приховано.</p><button className="text-button" onClick={() => navigate('settings')}>Перейти до налаштувань →</button></div></div>}
+    <div className={`assistant-layout${demo ? ' assistant-layout-demo' : ''}`}>
+      {!demo && <aside className="assistant-history" aria-label="Історія розмов">{historyContent}</aside>}
+      <section className="assistant-chat" aria-labelledby="assistant-chat-title">
+        <header className="assistant-toolbar">
+          <div className="assistant-toolbar-title">{!demo && <button className="icon-button assistant-history-toggle" aria-label="Відкрити історію чатів" onClick={() => setHistoryOpen(true)}><PanelLeft size={20}/></button>}<div><h1 id="assistant-chat-title">Фінансовий помічник</h1><span>{demo ? 'Демонстраційний режим' : selected ? 'Особиста розмова' : 'Новий чат'}</span></div></div>
+          <div className="assistant-toolbar-actions"><button className={`assistant-plan-toggle${planOpen ? ' active' : ''}`} aria-expanded={planOpen} aria-controls="assistant-plan-panel" onClick={() => setPlanOpen(open => !open)}><Calculator size={17}/><span>План витрат</span><ChevronDown size={14}/></button>{!demo && <button className="icon-button" aria-label={selected ? 'Видалити цей чат' : 'Очистити чернетку'} title={selected ? 'Видалити цей чат' : 'Очистити чернетку'} disabled={hide || historyLoading || threadLoading || historySaving || deleting || sending || (!selected && !messages.length && !draft)} onClick={() => { if (selected) { setDeleteError(''); setDeleteOpen(true); } else chooseThread(null); }}><Trash2 size={18}/></button>}</div>
+        </header>
+        {planOpen && <section className="assistant-plan" id="assistant-plan-panel" aria-labelledby="assistant-plan-title"><div className="assistant-section-heading"><h2 id="assistant-plan-title">План витрат</h2><span className="assistant-eyebrow"><Calculator size={14}/>Локальний розрахунок</span></div>
+        <p className="assistant-plan-intro">Розрахунок на основі внесених даних без очікуваних надходжень. Працює локально й не передає дані зовнішнім сервісам.</p>
         <div className="assistant-periods" aria-label="Період плану">{periods.map(option => <button key={option.value} aria-pressed={period === option.value} disabled={busy || saving} onClick={() => { setPeriod(option.value); setPlanError(''); }}>{option.label}</button>)}</div>
         {plan ? <>
           <p className="assistant-plan-dates">{dateLabel(plan.start)}{plan.start !== plan.end && ` — ${dateLabel(plan.end)}`} · {plan.days} дн.</p>
@@ -314,12 +374,36 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
           <dl className="assistant-plan-totals"><div><dt>Доступні кошти</dt><dd><Amount value={plan.available} hide={hide}/></dd></div><div><dt>Враховані зобов’язання</dt><dd><Amount value={plan.obligations} hide={hide}/></dd></div><div><dt>Можна розподілити</dt><dd><Amount value={plan.safeToSpend} hide={hide}/></dd></div></dl>
           {plan.deficit > 0 && <p className="assistant-deficit">На зобов’язання бракує <Amount value={plan.deficit} hide={hide}/>. Спочатку переглянь платежі й скороти необов’язкові витрати.</p>}
           <div className="assistant-plan-categories"><h3>Залишок за категоріями</h3><p>Додаткова сума, яку можна витратити за цей період.</p>{plan.items.length ? plan.items.map(item => <div className="assistant-plan-row" key={item.categoryId}><span>{categoryName(state, item.categoryId)}</span><Amount value={item.amount} hide={hide}/></div>) : <p className="assistant-plan-empty">Немає коштів або категорій для розподілу. Перевір рахунки, платежі та категорії витрат.</p>}</div>
-          {period === 'month' ? <button className="button secondary full" disabled={hide || busy || saving || sending || !plan.items.length} onClick={() => { setPreview(plan); setPlanError(''); }}><Check size={16}/>Переглянути місячні ліміти</button> : <p className="assistant-plan-note">Ліміти бюджету можна застосувати лише для місячного плану.</p>}
+          {period === 'month' ? <button className="button secondary full" disabled={hide || busy || saving || sending || !plan.items.length} onClick={() => { setPlanOpen(false); setPreview(plan); setPlanError(''); }}><Check size={16}/>Переглянути місячні ліміти</button> : <p className="assistant-plan-note">Ліміти бюджету можна застосувати лише для місячного плану.</p>}
           <button className="text-button" onClick={() => navigate('budget')}>Відкрити бюджет і платежі →</button>
         </> : <p className="form-error" role="alert">{planResult.error}</p>}
+        </section>}
+        <div className="assistant-messages" role="log" aria-label="Повідомлення помічника" aria-live="polite" aria-relevant="additions text" aria-busy={sending}>
+          <div className="assistant-conversation">
+            {hide ? <div className="assistant-chat-empty"><LockKeyhole size={28}/><h2>Чат приховано</h2><p>Текст знову з’явиться після вимкнення режиму приватності.</p></div> : threadLoading || historyLoading ? <div className="assistant-chat-empty"><RefreshCw size={25}/><h2>Завантажую розмови…</h2></div> : threadError ? <div className="assistant-history-error" role="alert"><p>{threadError}</p><button className="button secondary" onClick={() => void openThread(selected?.id ?? null)}>Повторити завантаження</button></div> : messages.length ? messages.map((message, index) => <article className={`assistant-message ${message.role}`} key={index}><strong>{message.role === 'user' ? 'Ти' : 'Помічник'}</strong><p>{message.content}</p></article>) : <div className="assistant-chat-empty"><span className="assistant-welcome-icon"><MessageCircle size={26} strokeWidth={1.5}/></span><h2>{demo ? 'Сплануй витрати спокійно' : 'З чого почнемо?'}</h2><p>{demo ? 'У деморежимі доступний локальний план. Обери період, переглянь розрахунок та спробуй місячні ліміти.' : 'Розберися з витратами, знайди можливості для економії або склади фінансовий план.'}</p>{demo ? <button className="button secondary" onClick={() => setPlanOpen(true)}><Calculator size={17}/>Відкрити план витрат</button> : <div className="assistant-prompts" aria-label="Приклади запитів">{prompts.map(prompt => <button key={prompt} disabled={composerBlocked || sending} onClick={() => setDraft(prompt)}>{prompt}<ArrowUp size={15}/></button>)}</div>}</div>}
+            {sending && !hide && <p className="assistant-thinking" role="status"><span/>Помічник готує відповідь…</p>}
+            <div ref={bottom}/>
+          </div>
+        </div>
+        {!demo && <div className="assistant-compose-area">
+          {!hide && pendingSave && <div className="assistant-save-notice" role={saveError ? 'alert' : 'status'}><LockKeyhole size={17}/><div><strong>{historySaving ? 'Зберігаю розмову…' : 'Відповідь ще не збережена'}</strong><p>{saveError || 'Дочекайся збереження перед наступним повідомленням.'}</p>{!historySaving && <button className="button secondary" onClick={() => void persistChat(pendingSave, request.current)}><RefreshCw size={14}/>Повторити збереження</button>}{!historySaving && saveError && selected && <button className="text-button" onClick={() => setDiscardTarget({ id: selected.id })}>Завантажити збережений чат</button>}</div></div>}
+          {!hide && !consent && <div className="assistant-enable"><span>{consentLoading ? 'Перевіряю доступ до помічника…' : consentError ? 'Не вдалося підтвердити доступ до помічника.' : 'Історія й локальний план доступні. Увімкни помічника, щоб написати.'}</span><button className="text-button" disabled={consentLoading} onClick={() => { setConsentOpen(true); if (!consentReady) void initializeConsent(); }}>Увімкнути помічника</button></div>}
+          {!hide && messages.length >= 200 && <p className="assistant-history-state">У цьому чаті вже 200 повідомлень. Продовж у новому чаті.</p>}
+          <form className="assistant-composer" onSubmit={send}>
+            <label className="assistant-sr-only" htmlFor="assistant-draft">Твоє повідомлення</label>
+            <textarea id="assistant-draft" value={hide ? '' : draft} onChange={event => setDraft(event.target.value)} maxLength={1000} rows={2} disabled={composerBlocked || sending} placeholder={hide ? 'Чернетку приховано' : !consent ? 'Увімкни помічника, щоб почати розмову' : 'Запитай про свій бюджет…'} aria-describedby="assistant-input-note"/>
+            <div className="assistant-composer-footer"><small id="assistant-input-note">{hide ? 'Текст приховано' : `${draft.length} / 1000`}</small>{sending ? <button type="button" className="assistant-send" aria-label="Зупинити відповідь" title="Зупинити відповідь" onClick={() => cancel()}><Square size={16}/></button> : <button className="assistant-send" aria-label="Надіслати повідомлення" title="Надіслати повідомлення" disabled={composerBlocked || !ownerId || !draft.trim()}><ArrowUp size={20}/></button>}</div>
+          </form>
+          {!hide && error && <div className="form-error" role="alert">{error}</div>}
+          {!hide && status && <p className="assistant-status" role="status">{status}</p>}
+          <p className="assistant-disclaimer">Помічник може помилятися. Перевіряй важливі розрахунки. Чат самостійно не змінює бюджет.</p>
+        </div>}
       </section>
     </div>
-    {!hide && status && <p className="assistant-status" role="status">{status}</p>}
+    <Modal open={historyOpen && !demo && !hide && !consentOpen} title="Історія чатів" onClose={() => setHistoryOpen(false)}><div className="assistant-mobile-history">{historyContent}</div></Modal>
+    <Modal open={consentOpen && !demo && !hide && !preview && !deleteOpen && !discardTarget} title="Увімкнути фінансового помічника?" onClose={declineConsent}>
+      <div className="assistant-consent-dialog" aria-busy={consentSaving || consentLoading}><span className="assistant-consent-icon"><ShieldCheck size={25}/></span><p>Для відповідей NVIDIA отримає твої повідомлення та скорочений фінансовий підсумок: загальні суми й назви категорій. Назви рахунків, номери карток і нотатки автоматично не передаються.</p><p>Чати приватно зберігаються в Supabase. Після «Так» запам’ятаємо дозвіл для твого акаунта. Після «Ні» запитаємо при наступному відкритті чату.</p>{consentLoading && <p role="status">Перевіряю збережений дозвіл…</p>}{consentSaving && <p role="status">Зберігаю твій дозвіл…</p>}{consentError && <div className="form-error" role="alert">{consentError}</div>}{!consentReady && !consentLoading && <button className="text-button" onClick={() => void initializeConsent()}><RefreshCw size={14}/>Повторити перевірку</button>}<div className="form-footer"><button className="button secondary" disabled={consentSaving || consentLoading} onClick={declineConsent}>Ні</button><button className="button primary" disabled={consentSaving || consentLoading || !consentReady} onClick={() => void confirmConsent()}>Так</button></div></div>
+    </Modal>
     <Modal open={!!discardTarget && !hide} title="Залишити поточний чат?" onClose={() => setDiscardTarget(null)}>
       <div className="assistant-history-dialog"><p>{pendingSave ? 'Останню відповідь ще не збережено. Якщо продовжити, незбережений текст буде втрачено. Можеш скасувати й повторити збереження.' : sending ? 'Помічник ще готує відповідь. Якщо продовжити, запит зупиниться, а чернетку буде очищено.' : 'Чернетку цього повідомлення не збережено. Якщо продовжити, її буде очищено.'}</p><div className="form-footer"><button className="button secondary" onClick={() => setDiscardTarget(null)}>Залишитися</button><button className="button primary" disabled={historySaving || deleting} onClick={() => { const target = discardTarget; setDiscardTarget(null); if (target) void openThread(target.id); }}>Продовжити без збереження</button></div></div>
     </Modal>

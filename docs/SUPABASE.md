@@ -1,5 +1,11 @@
 # Налаштування Supabase
 
+## Збереження дозволу помічника (20.10.2026)
+
+Застосовано `20261019214229_persistent_finance_chat_consent.sql`. RPC `get_finance_chat_consent` і `accept_finance_chat_consent` доступні лише authenticated та перевіряють очікуваного власника й чинний Auth-сеанс через спільний приватний helper. Дозвіл зберігається у `user_preferences.preferences.financeChatConsent` як строгі `accepted:true`, `version:1` та дата. Відмова не зберігається. Повторне підтвердження зберігає початкову дату; атомарне оновлення не перезаписує інші налаштування чи версію фінансів. Видалення акаунта видаляє дозвіл каскадно. Майбутні редактори налаштувань мають так само оновлювати окремі ключі атомарно.
+
+SQL QA: `supabase/tests/finance_chat_consent.sql`, транзакція з ROLLBACK. Security advisor позначає нові authenticated SECURITY DEFINER RPC; це очікувано для цих вузьких owner/session-guarded операцій з порожнім search_path. Додаткові права таблиць не надавалися. [Пояснення перевірки](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+
 ## AI-чат NVIDIA (18.10.2026)
 
 Розгорнуто `finance-chat` і застосовано міграцію приватних квот `20261018203806_finance_ai_private_quota.sql`. Серверний секрет NVIDIA_API_KEY встановлено через Dashboard; справжній запит через Edge повернув відповідь NVIDIA. Ключ відсутній у frontend та Git. [Налаштування, межі доступу та перевірки](finance-assistant.md).
