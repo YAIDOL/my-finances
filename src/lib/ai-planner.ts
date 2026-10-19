@@ -115,3 +115,18 @@ export function buildAiContext(state: FinanceState, now = today()): object {
  const reduced = (plan: FinancePlan) => ({ period: plan.period, start: plan.start, end: plan.end, days: plan.days, available: plan.available, obligations: plan.obligations, safeToSpend: plan.safeToSpend, daily: plan.daily, deficit: plan.deficit, categories: plan.items.map(item => ({ name: state.categories.find(category => category.id === item.categoryId)!.name, amount: item.amount })) });
  return { currency: 'UAH', unit: 'kopecks', date: now, totals: summary, categories, plans: { day: reduced(day), week: reduced(week), month: reduced(month) } };
 }
+
+export function buildAiPromptContext(state: FinanceState, now = today()): object {
+ const format = (value: unknown, key = ''): unknown => {
+  // Days are the reduced context's only numeric value that is not money.
+  if (typeof value === 'number' && key !== 'days') {
+   const amount = BigInt(safe(value)), absolute = amount < 0n ? -amount : amount;
+   return `${amount < 0n ? '-' : ''}${absolute / 100n},${String(absolute % 100n).padStart(2, '0')} грн`;
+  }
+  if (Array.isArray(value)) return value.map(item => format(item));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, format(child, childKey)]));
+  return value;
+ };
+ const context = format(buildAiContext(state, now)) as Record<string, unknown>;
+ return { ...context, unit: 'formatted-UAH' };
+}

@@ -91,10 +91,11 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
     setMessages(history);
     setDraft('');
     try {
-      const { reply } = await sendFinanceChat(history, ownerId, consent, abort.signal);
+      const { reply, model } = await sendFinanceChat(history, ownerId, consent, abort.signal);
       if (!mounted.current || request.current !== currentRequest || abort.signal.aborted) return;
       if (typeof reply !== 'string' || !reply.trim() || reply.length > 8000) throw new Error('INVALID_REPLY');
-      setMessages(boundedHistory([...history, { role: 'assistant', content: reply.trim() }]));
+      setMessages(boundedHistory([...history, { role: 'assistant', content: reply.trim(), ...(model ? { model } : {}) }]));
+      if (model === 'nvidia/nemotron-3.5-lightning-30b-a3b') setStatus('Відповідь надав резервний помічник NVIDIA Nemotron, оскільки основний помічник недоступний.');
     } catch (failure) {
       if (!mounted.current || request.current !== currentRequest || abort.signal.aborted) return;
       setError(failure instanceof FinanceChatError ? failure.message : 'Не вдалося отримати відповідь. Перевір з’єднання й спробуй ще раз.');
@@ -130,13 +131,13 @@ export function Assistant({ state, mutate, hide, busy, navigate, ownerId, demo }
       <section className="panel assistant-chat" aria-labelledby="assistant-chat-title">
         <div className="assistant-section-heading"><div><span className="assistant-eyebrow"><MessageCircle size={15}/> Чат про фінанси</span><h2 id="assistant-chat-title">Запитай про свій бюджет</h2></div><button className="icon-button" aria-label="Очистити локальний чат" title="Очистити локальний чат" disabled={hide || (!messages.length && !draft)} onClick={clearChat}><Trash2 size={18}/></button></div>
         {!demo && <div className="assistant-consent">
-          <div className="assistant-provider"><ShieldCheck size={17}/><span>NVIDIA · модель z-ai/glm-5.3-flash</span></div>
-          <p>Після твоєї згоди помічник передасть NVIDIA повідомлення чату та скорочений фінансовий підсумок: назви категорій і загальні суми. Назви рахунків, номери карток, ідентифікатори, нотатки та імена людей у боргах не передаються автоматично.</p>
+          <div className="assistant-provider"><ShieldCheck size={17}/><span>NVIDIA · GLM 5.3 Flash · резерв: Nemotron 3.5 Lightning</span></div>
+          <p>Після твоєї згоди помічник передасть NVIDIA повідомлення чату та скорочений фінансовий підсумок: назви категорій і загальні суми. Якщо GLM не відповість вчасно або буде недоступний, запит отримає резервний помічник NVIDIA Nemotron. Назви рахунків, номери карток, ідентифікатори, нотатки та імена людей у боргах не передаються автоматично.</p>
           <p>Не вписуй секретні або особисті дані в повідомлення. Історія зберігається лише в пам’яті цієї сторінки й зникає після виходу з неї. Очищення чату не відкликає вже передані дані.</p>
           <label className="assistant-consent-check"><input type="checkbox" checked={consent} disabled={hide || sending} onChange={event => { setConsent(event.target.checked); setError(''); }}/><span>Дозволяю надсилати ці дані до NVIDIA для відповідей у чаті.</span></label>
         </div>}
         <div className="assistant-messages" role="log" aria-label="Повідомлення помічника" aria-live="polite" aria-relevant="additions text" aria-busy={sending}>
-          {hide ? <div className="assistant-chat-empty"><LockKeyhole size={27}/><h3>Чат приховано</h3><p>Текст повідомлень і чернетка знову з’являться після вимкнення режиму приватності.</p></div> : messages.length ? messages.map((message, index) => <article className={`assistant-message ${message.role}`} key={index}><strong>{message.role === 'user' ? 'Ти' : 'Помічник'}</strong><p>{message.content}</p></article>) : <div className="assistant-chat-empty"><MessageCircle size={29}/><h3>{demo ? 'Почни з локального плану' : 'З чого почнемо?'}</h3><p>{demo ? 'Обери день, тиждень або місяць у блоці планування.' : 'Попроси пояснити витрати, знайти можливості для економії або допомогти з фінансовою звичкою.'}</p></div>}
+          {hide ? <div className="assistant-chat-empty"><LockKeyhole size={27}/><h3>Чат приховано</h3><p>Текст повідомлень і чернетка знову з’являться після вимкнення режиму приватності.</p></div> : messages.length ? messages.map((message, index) => <article className={`assistant-message ${message.role}`} key={index}><strong>{message.role === 'user' ? 'Ти' : message.model === 'nvidia/nemotron-3.5-lightning-30b-a3b' ? 'Помічник · резерв NVIDIA Nemotron' : message.model === 'z-ai/glm-5.3-flash' ? 'Помічник · NVIDIA GLM' : 'Помічник'}</strong><p>{message.content}</p></article>) : <div className="assistant-chat-empty"><MessageCircle size={29}/><h3>{demo ? 'Почни з локального плану' : 'З чого почнемо?'}</h3><p>{demo ? 'Обери день, тиждень або місяць у блоці планування.' : 'Попроси пояснити витрати, знайти можливості для економії або допомогти з фінансовою звичкою.'}</p></div>}
           {sending && !hide && <p className="assistant-thinking">Помічник готує відповідь…</p>}
           <div ref={bottom}/>
         </div>

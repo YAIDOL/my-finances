@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEmptyState, restoreFinanceState, totals } from './finance';
 import type { FinanceState } from './types';
-import { applyFinancePlan, buildAiContext, buildFinancePlan } from './ai-planner';
+import { applyFinancePlan, buildAiContext, buildAiPromptContext, buildFinancePlan } from './ai-planner';
 
 const now = '2026-10-18';
 function base(amount = 140000): FinanceState {
@@ -160,5 +160,38 @@ describe('provider context privacy', () => {
   for (const secret of ['Secret bank name', 'secret-account-id', '9876', 'Secret transaction note', 'secret-tx-id', 'secret-goal-id', 'Secret goal', 'Secret person', 'secret-debt-id', 'Secret debt note', 'sourceFingerprint', 'categoryId']) expect(json).not.toContain(secret);
   expect(json).toContain('Продукти');
   expect(context).toMatchObject({ currency: 'UAH', unit: 'kopecks', date: now, totals: { available: 138900, expense: 100 }, plans: { day: { safeToSpend: 9921 }, month: { safeToSpend: 138900 } } });
+ });
+});
+
+describe('copy-ready provider money', () => {
+ it('formats 1000 hryvnias over 13 days as 76,92 грн per day without raw monetary numbers', () => {
+  const state = base(100000), prompt = buildAiPromptContext(state, '2026-10-19');
+  expect(prompt).toMatchObject({ currency: 'UAH', unit: 'formatted-UAH', date: '2026-10-19', totals: { balance: '1000,00 грн', saved: '0,00 грн', reserved: '0,00 грн', available: '1000,00 грн', income: '0,00 грн', expense: '0,00 грн' }, categories: [{ name: 'Продукти', expense: '0,00 грн', limit: '0,00 грн' }, { name: 'Кафе та доставка', expense: '0,00 грн', limit: '0,00 грн' }], plans: { day: { days: 1, available: '1000,00 грн', safeToSpend: '76,92 грн', daily: '76,92 грн', obligations: '0,00 грн', deficit: '0,00 грн' }, week: { days: 7, safeToSpend: '538,46 грн', daily: '76,92 грн' }, month: { start: '2026-10-19', end: '2026-10-31', days: 13, safeToSpend: '1000,00 грн', daily: '76,92 грн', categories: [{ name: 'Продукти', amount: '500,00 грн' }, { name: 'Кафе та доставка', amount: '500,00 грн' }] } } });
+  const numericLeaves: { key: string; value: number }[] = [];
+  function collect(value: unknown, key = '') {
+   if (typeof value === 'number') numericLeaves.push({ key, value });
+   else if (Array.isArray(value)) value.forEach(item => collect(item, key));
+   else if (value && typeof value === 'object') Object.entries(value).forEach(([childKey, child]) => collect(child, childKey));
+  }
+  collect(prompt);
+  expect(numericLeaves).toEqual([{ key: 'days', value: 1 }, { key: 'days', value: 7 }, { key: 'days', value: 13 }]);
+  expect(buildAiContext(state, '2026-10-19')).toMatchObject({ unit: 'kopecks', plans: { month: { days: 13, daily: 7692 } } });
+ });
+
+ it('formats one kopeck and negative totals exactly while retaining the privacy boundary', () => {
+  const state = base(1);
+  state.categories.push(createEmptyState().categories.find(category => category.id === 'income-0')!);
+  state.transactions = [
+   { id: 'secret-tx-id', kind: 'income', amount: 2, accountId: 'secret-account-id', category: 'income-0', note: 'Secret transaction note', date: '2026-11-01' },
+   { id: 'expense', kind: 'expense', amount: 2, accountId: 'secret-account-id', category: 'expense-0', note: 'Secret expense note', date: '2026-10-19' },
+  ];
+  state.goals = [{ id: 'secret-goal-id', name: 'Secret goal', target: 1, dueDate: '', allocations: [{ accountId: 'secret-account-id', amount: 1 }] }];
+  state.debts = [{ id: 'secret-debt-id', person: 'Secret person', principal: 1, direction: 'receivable', date: now, dueDate: '', note: 'Secret debt note' }];
+  state.budgets = [{ id: 'budget', category: 'expense-0', month: '2026-10', limit: 1 }];
+  restoreFinanceState(state);
+  const prompt = buildAiPromptContext(state, '2026-10-19'), json = JSON.stringify(prompt);
+  expect(prompt).toMatchObject({ totals: { balance: '-0,01 грн', saved: '0,01 грн', available: '-0,02 грн', expense: '0,02 грн' }, categories: expect.arrayContaining([{ name: 'Продукти', expense: '0,02 грн', limit: '0,01 грн' }]), plans: { month: { available: '-0,02 грн', safeToSpend: '0,00 грн', daily: '0,00 грн', deficit: '0,02 грн' } } });
+  expect(JSON.parse(json)).toEqual(prompt);
+  for (const secret of ['Secret bank name', 'secret-account-id', '9876', 'Secret transaction note', 'Secret expense note', 'secret-tx-id', 'secret-goal-id', 'Secret goal', 'Secret person', 'secret-debt-id', 'Secret debt note', 'sourceFingerprint', 'categoryId']) expect(json).not.toContain(secret);
  });
 });

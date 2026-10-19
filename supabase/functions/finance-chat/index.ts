@@ -1,7 +1,7 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.117.2';
 import {createFinanceChatHandler} from './handler.ts';
 import {callNvidia} from './provider.ts';
-import {buildAiContext} from '../../../src/lib/ai-planner.ts';
+import {buildAiPromptContext} from '../../../src/lib/ai-planner.ts';
 import {createEmptyState,restoreFinanceState} from '../../../src/lib/finance.ts';
 
 const url=Deno.env.get('SUPABASE_URL')||'';
@@ -26,7 +26,8 @@ Deno.serve(createFinanceChatHandler({
   // The service-role client never reads finances; RLS sees the verified user's JWT.
   const {data,error}=await scoped(token).from('finance_state').select('state').eq('user_id',userId).maybeSingle();
   if(error)throw new Error('CONTEXT_UNAVAILABLE');
-  return buildAiContext(data?restoreFinanceState(data.state):createEmptyState());
+  return buildAiPromptContext(data?restoreFinanceState(data.state):createEmptyState());
  },
- complete:(messages,signal)=>callNvidia(messages,Deno.env.get('NVIDIA_API_KEY')!.trim(),signal),
+ complete:(messages,signal)=>callNvidia(messages,Deno.env.get('NVIDIA_API_KEY')!.trim(),signal,fetch,failure=>console.warn(JSON.stringify({event:'finance_chat_provider_failure',...failure}))),
+ reportFailure:failure=>console.warn(JSON.stringify({event:'finance_chat_failure',...failure})),
 }));
