@@ -75,6 +75,14 @@ RLS, перевірка очікуваного власника, конкуре�
 
 Застосовано `20261007214436_ledger_comfort_v2.sql` та `20261007214808_allow_safe_accumulated_balance_corrections.sql`. Нові документи мають `formatVersion: 2`; частини витрати, датована історія цілей та підтверджений розподіл зберігаються всередині особистого документа. Сервер перевіряє їхню структуру, суми й дати. Старі документи можна прочитати, але старий клієнт не може перезаписати вже збережений формат 2. Застосуйте обидва файли після міграції щоденних інструментів, у порядку назв. RLS і трьохпараметровий RPC зберігаються. [Правила та результати перевірки](ledger-comfort.md).
 
+## Приватні чати
+
+Застосовано `20261019185538_private_finance_chat_history.sql` і `20261019190211_finance_chat_live_session_reads_and_terminal_conflicts.sql`. `finance_chat_threads` має FK власника з `ON DELETE CASCADE`, індекс власник/дата, SELECT-only RLS і перевірку чинного зареєстрованого сеансу через приватний helper. Відкликаний, прострочений або чужий сеанс не читає навіть власний рядок зі ще не простроченим JWT.
+
+`save_finance_chat` і `delete_finance_chat` доступні лише authenticated та окремо перевіряють власника, чинний сеанс і версію. Запис завершеної пари атомарний, історія лише доповнюється, точний повтор після втраченої відповіді ідемпотентний. Бізнес-конфлікт має SQLSTATE `PT409`: штучний `40001` спричиняв нескінченні повтори PostgREST 14; [офіційне пояснення](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b). Ліміти — 100 чатів/власника, 200 повідомлень/чат, 500000 байтів JSON; контрольовані ролі та дозволені моделі. Прямі клієнтські мутації заборонені.
+
+`supabase/tests/finance_chat_history.sql` перевіряє ізоляцію, ACL, власника/сеанс, валідацію, ліміти, версії, повтори та каскадне видалення у транзакції з ROLLBACK. SECURITY DEFINER для публічних save/delete RPC навмисний; приватний helper повертає тільки булевий дозвіл і не відкриває дані Auth. [Пояснення advisor](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+
 ## Видалення власного акаунта
 
 Функція `delete-account` розгорнута з `supabase/functions/delete-account/index.ts`; конфігурація — `supabase/config.toml`. Для повторного розгортання встановіть офіційний Supabase CLI, прив’яжіть погоджений проєкт і виконайте `supabase functions deploy delete-account`. Не достатньо опублікувати лише frontend: Edge Function має бути доступна до публікації кнопки.
