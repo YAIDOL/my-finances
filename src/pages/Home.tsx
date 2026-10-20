@@ -8,7 +8,7 @@ import { WalletScene } from '../components/WalletScene';
 import { Amount, Empty, LinkButton, Progress, Shield, TransactionRow, Modal, type ViewProps } from '../components/ui';
 import { accountBalance, currentMonth, goalSaved, totals } from '../lib/finance';
 
-export function Home(props: ViewProps) {
+export function Home(props: ViewProps & { onRecord: (kind: 'expense' | 'income') => void }) {
   const { state, hide, navigate } = props;
   const [index, setIndex] = useState(0), [details, setDetails] = useState(false);
   const accounts = state.accounts.filter(account => !account.archived);
@@ -30,7 +30,10 @@ export function Home(props: ViewProps) {
           <div><span><ArrowDownLeft size={15}/>Надійшло за місяць</span><Amount value={total.income} hide={hide} className="positive"/></div>
           <div><span><ArrowUpRight size={15}/>Витрачено за місяць</span><Amount value={total.expense} hide={hide} className="negative"/></div>
         </div>
-        <button className="button secondary" onClick={() => navigate('transactions')}>Переглянути операції <ChevronRight size={17}/></button>
+        <div className="home-money-actions">
+          <button className="button primary" disabled={props.busy} onClick={() => props.onRecord('expense')}><ArrowUpRight size={17}/>Записати витрату</button>
+          <button className="button secondary" disabled={props.busy} onClick={() => props.onRecord('income')}><ArrowDownLeft size={17}/>Додати надходження</button>
+        </div>
       </div>
       <WalletScene/>
     </section>

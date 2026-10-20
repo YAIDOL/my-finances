@@ -4,7 +4,7 @@ import { X, Plus, ChevronRight, Wallet, Coffee, ShoppingBag, ArrowDownLeft, Arro
 import type { FinanceState, Transaction } from '../lib/types';
 import { money, categoryName, categoryColor } from '../lib/finance';
 export type Mutate = (transform:(s:FinanceState)=>FinanceState, message?:string)=>Promise<boolean>;
-export interface ViewProps {state:FinanceState;mutate:Mutate;hide:boolean;busy:boolean;navigate:(page:string)=>void}
+export interface ViewProps {state:FinanceState;mutate:Mutate;hide:boolean;busy:boolean;navigate:(page:string,options?:{debtId?:string})=>void}
 export const Amount=({value,hide,className=''}:{value:number;hide?:boolean;className?:string})=><span className={'amount '+className}>{hide?'••••• ₴':money(value)}</span>;
 export function Empty({title,description,action}:{title:string;description:string;action?:ReactNode}){return <div className="empty"><div className="empty-icon"><Wallet/></div><h3>{title}</h3><p>{description}</p>{action}</div>;}
 export function PageTitle({title,description,action}:{title:string;description:string;action?:ReactNode}){return <div className="page-title"><div><h1>{title}</h1><p>{description}</p></div>{action}</div>;}
