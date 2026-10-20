@@ -1,0 +1,198 @@
+/* Shared polish keeps the existing semantic palette and component system. */
+:root {
+  --bg:#10151c; --surface:#18212c; --surface-2:#202b38; --surface-3:#293748;
+  --text:#f0f4f8; --muted:#b1bdcc; --subtle:#91a1b5; --line:#303e4e;
+  --primary:#496e91; --primary-hover:#52799f; --blue:#a8c9e6;
+  --control-line:#697c92; --shadow:0 1px 2px #00000012,0 10px 30px #0000000c;
+  --body-gradient:radial-gradient(ellipse at 90% 5%,#324a611b,transparent 48%);
+  --ease-out:cubic-bezier(.2,0,0,1);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+:root[data-theme=light] {
+  --bg:#f2f4f7; --surface:#fff; --surface-2:#edf1f5; --surface-3:#e2e9f0;
+  --text:#192536; --muted:#4e6073; --subtle:#5e7084; --line:#d8e0e8;
+  --primary:#315f89; --primary-hover:#244d76; --blue:#315f89;
+  --control-line:#7b899b; --shadow:0 1px 2px #263c5310,0 10px 30px #263c5307;
+  --body-gradient:radial-gradient(ellipse at 90% 5%,#d5e1ed50,transparent 48%);
+}
+.theme-changing *,.theme-changing *::before,.theme-changing *::after {transition:none!important}
+::selection{background:var(--primary);color:#fff}
+h1,h2,h3{text-wrap:balance}
+p{text-wrap:pretty}
+.amount,.transaction-amount,.stat,.assistant-daily,.payday-main {font-variant-numeric:tabular-nums}
+.panel{background:var(--surface);box-shadow:var(--shadow)}
+.button{transition:background-color 150ms ease-out,color 150ms ease-out,transform 150ms ease-out;min-height:46px}
+.button:active:not(:disabled),.nav-add:active:not(:disabled),.dock-add:active:not(:disabled){transform:scale(.96)}
+.icon-button{width:40px;height:40px;min-width:40px;min-height:40px}
+.brand{gap:11px;font-size:22px;letter-spacing:-.035em}
+.brand-mark{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:40px;height:40px;border-radius:12px;background:var(--surface-3);color:var(--blue);box-shadow:inset 0 1px 0 #ffffff0c}
+.brand-mark svg{width:31px;height:31px}
+.main-nav>a.active::after{height:2px;bottom:18px}
+.main-nav>.nav-add,.mobile-dock>.dock-add{background:var(--primary);box-shadow:0 3px 8px #0002,inset 0 1px 0 #ffffff1a}
+.session-label,.demo-label,.session-strip .text-button{font-size:12px}
+.skip-link{position:fixed;z-index:100;inset:10px auto auto 16px;translate:0 -160%;background:var(--text);color:var(--bg);border-radius:10px;padding:12px 18px;font-size:14px}
+.skip-link:focus{translate:0 0}
+input,select,textarea{border-color:var(--control-line)}
+input::placeholder,textarea::placeholder{color:var(--subtle);opacity:1}
+.search-field,.password-field{border-color:var(--control-line)}
+.modal,.more-popover,.main-nav.mobile-open{overscroll-behavior:contain}
+
+/* The balance is the focal point; operational cards come before secondary tools. */
+.finance-overview{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);min-height:392px;padding:22px 12px 32px;gap:32px}
+.finance-overview .eyebrow{font-size:12px;margin-bottom:16px;line-height:1.6}
+.finance-overview h1{font-size:clamp(25px,2.5vw,34px);line-height:1.25;max-width:520px;margin-bottom:22px;letter-spacing:-.035em}
+.finance-overview .balance-button{max-width:100%;border-radius:8px}
+.finance-overview .balance-button>span:first-child{font-size:13px;margin-bottom:6px}
+.finance-overview .balance-button>.amount{font-size:clamp(42px,5.4vw,72px);line-height:1.15;font-weight:750;letter-spacing:-.045em;overflow-wrap:anywhere;max-width:100%}
+.finance-overview .balance-button small{font-size:12px;margin-top:7px;color:var(--muted);gap:6px}
+.finance-overview .hero-stats{gap:28px;margin:24px 0 22px}
+.finance-overview .hero-stats>div+div{padding-left:28px}
+.finance-overview .hero-stats span:first-child{font-size:12px;gap:5px;line-height:1.6}
+.finance-overview .hero-stats .amount{font-size:24px;font-weight:650;letter-spacing:-.02em}
+.finance-overview>.hero-copy>.button{min-height:44px;font-size:13px;border-radius:12px}
+.home-grid{grid-template-columns:minmax(0,1.08fr) minmax(0,1.15fr) minmax(0,.95fr);gap:18px}
+.home-grid .panel{padding:23px;min-height:320px;box-shadow:var(--shadow)}
+.home-grid .panel-heading{gap:10px;margin-bottom:24px;flex-wrap:wrap}
+.home-grid .panel-heading h2{font-size:18px}
+.home-grid .panel-heading .text-button{font-size:13px;min-height:36px}
+.home-grid .carousel-controls{gap:6px}
+.home-grid .carousel-controls .icon-button{width:36px;height:36px;min-width:36px}
+.home-grid .transaction-row{padding:18px 0}
+.home-grid .transaction-text small{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+.home-grid .transaction-text strong{white-space:normal;overflow-wrap:anywhere}
+.home-grid .transaction-amount{font-size:15px}
+.home-grid .transaction-amount small{font-size:11px}
+.home-grid .goal-home-title{min-height:100px;margin-bottom:17px}
+.home-grid .goal-home-title h3{font-size:24px;max-width:190px;overflow-wrap:anywhere}
+.home-grid .shield{width:64px;height:76px;background:none}
+.home-grid .progress{height:7px}
+.home-grid .progress-caption{font-size:12px;margin:12px 0 22px}
+.home-grid .card-stack{margin-right:20px;margin-bottom:17px}
+.home-grid .card-shadow{right:-12px;transform:rotate(3deg)}
+.home-grid .bank-card{min-height:154px;box-shadow:inset 0 1px 0 #ffffff1c,0 8px 18px #0002}
+.home-grid .account-chips>button{min-height:62px;gap:6px}
+.home-grid .account-chips>button>span:first-child{font-size:11px;white-space:normal;overflow-wrap:anywhere;text-align:start}
+.home-support{margin-top:26px;padding-top:6px}
+.home-support .quick-entry{padding-top:6px}
+.home-support .quick-entry h2{font-size:14px}
+.home-support .quick-entry .text-button,.home-support .quick-entry>p{font-size:12px}
+.home-support .home-reminders,.home-support .budget-warnings{box-shadow:none}
+
+/* An ordinary image gains depth through a handful of bounded transforms. */
+.wallet-scene{position:relative;min-width:0;width:100%;height:360px;perspective:900px;isolation:isolate;touch-action:pan-y}
+.wallet-scene::before{content:'';position:absolute;inset:3% 0 0;border-radius:50%;background:radial-gradient(ellipse at 50% 48%,#91b5d020,transparent 65%);pointer-events:none}
+.wallet-depth{position:absolute;inset:0;pointer-events:none}
+.wallet-object{height:100%;width:100%;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d}
+.wallet-object img{display:block;object-fit:contain;width:94%;height:100%;max-width:430px;filter:drop-shadow(0 18px 18px #0003)}
+.wallet-ground{position:absolute;width:54%;height:15%;inset:auto 23% 2%;border-radius:50%;background:radial-gradient(ellipse,#0005,transparent 68%);transform:rotateX(65deg);pointer-events:none}
+.wallet-orbit{position:absolute;inset:54% 0 4%;border:1px solid color-mix(in srgb,var(--blue) 17%,transparent);border-radius:50%;transform:rotateX(64deg) rotateZ(-12deg);pointer-events:none}
+.wallet-orbit-back{z-index:-1;inset:42% -2% 6%;opacity:.45}
+.wallet-orbit-front{border-top-color:transparent;border-left-color:transparent;opacity:.7}
+.auth-story>.wallet-scene{margin:5px 0 12px;width:min(100%,500px);height:300px}
+.auth-story>.wallet-scene .wallet-object img{max-width:340px}
+.auth-story>p{font-size:15px;line-height:1.8}
+.auth-main{grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:clamp(40px,7vw,108px)}
+.auth-story h1{font-size:clamp(32px,3.7vw,48px);letter-spacing:-.04em}
+.auth-card{background:var(--surface);border-radius:24px;padding:32px}
+.auth-card>p{font-size:14px}
+.auth-card-icon{width:48px;height:48px;border-radius:16px}
+.auth-card input{min-height:48px;font-size:16px}
+.auth-card .transaction-tabs button{min-height:44px}
+.auth-note,.auth-card label>small{font-size:12px}
+.auth-story-foot{font-size:12px}
+
+@media(hover:hover) {
+  .home-grid .account-chips>button:hover{border-color:var(--blue);background:var(--surface-3)}
+  .main-nav>a:hover{color:var(--text)}
+  .motion-switch:hover{background:var(--surface-3)}
+}
+@media(prefers-reduced-motion:no-preference) {
+  :root:not([data-motion=reduced]) .wallet-object img{animation:wallet-breathe 8s ease-in-out infinite}
+  :root:not([data-motion=reduced]) .home-grid>.panel{animation:overview-arrive 300ms ease-out both}
+  :root:not([data-motion=reduced]) .home-grid>.panel:nth-child(2){animation-delay:100ms}
+  :root:not([data-motion=reduced]) .home-grid>.panel:nth-child(3){animation-delay:200ms}
+}
+@keyframes wallet-breathe{0%,100%{translate:0 0;rotate:-.5deg}50%{translate:0 -5px;rotate:.5deg}}
+@keyframes overview-arrive{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+
+@media(max-width:1100px) {
+  .finance-overview{gap:20px}
+  .home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-grid .goal-panel{grid-column:1/-1}
+  .home-grid .goal-home-title{min-height:70px}
+  .home-grid .goal-home-title h3{max-width:none}
+  .auth-main{gap:40px;grid-template-columns:minmax(0,1fr) minmax(0,410px)}
+}
+@media(max-width:900px) {
+  .finance-overview .wallet-scene{height:310px}
+  .finance-overview h1{font-size:29px}
+  .finance-overview .hero-stats{gap:18px}
+  .finance-overview .hero-stats>div+div{padding-left:18px}
+  .finance-overview .hero-stats .amount{font-size:21px}
+  .auth-main{grid-template-columns:minmax(0,1fr);max-width:520px;margin-inline:auto;padding-top:20px}
+  .auth-story>.wallet-scene{display:none}
+  .auth-story{padding:0;text-align:start}
+  .auth-story .eyebrow{justify-content:flex-start}
+  .auth-story>p{display:none}
+  .auth-story h1{font-size:34px}
+  .auth-story-foot{display:none}
+}
+@media(max-width:700px) {
+  .brand{font-size:19px;gap:9px}
+  .brand-mark{width:34px;height:34px;border-radius:10px}
+  .brand-mark svg{width:27px;height:27px}
+  .header-actions{gap:2px}
+  .header-actions>.icon-button,.auth-header .icon-button{width:44px;height:44px;min-width:44px}
+  .session-strip{gap:10px}
+  .session-label,.demo-label,.session-strip .text-button{font-size:10px;line-height:1.6}
+  .finance-overview{display:block;position:relative;padding:17px 2px 20px;min-height:0;overflow:clip}
+  .finance-overview .eyebrow{font-size:11px;margin-bottom:10px;padding-right:80px}
+  .finance-overview h1{font-size:27px;line-height:1.3;min-height:0;max-width:70%;margin-bottom:17px;letter-spacing:-.035em}
+  .finance-overview .balance-button{width:auto;max-width:100%}
+  .finance-overview .balance-button>span:first-child{font-size:12px}
+  .finance-overview .balance-button>.amount{font-size:clamp(38px,10.8vw,56px);max-width:100%}
+  .finance-overview .balance-button small{font-size:11px}
+  .finance-overview .hero-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0 16px}
+  .finance-overview .hero-stats>div+div{padding-left:14px}
+  .finance-overview .hero-stats span:first-child{font-size:11px;gap:4px}
+  .finance-overview .hero-stats .amount{font-size:clamp(18px,5.5vw,24px);overflow-wrap:anywhere}
+  .finance-overview>.hero-copy>.button{width:100%;font-size:13px}
+  .finance-overview>.wallet-scene{position:absolute;inset:20px 0 auto auto;width:105px;height:105px;pointer-events:none}
+  .finance-overview .wallet-orbit{display:none}
+  .finance-overview .wallet-object img{width:100%;max-width:none}
+  .home-grid{grid-template-columns:minmax(0,1fr);gap:16px}
+  .home-grid .goal-panel{grid-column:auto}
+  .home-grid .panel{padding:21px;min-height:0}
+  .home-grid .panel-heading{margin-bottom:20px}
+  .home-grid .panel-heading h2{font-size:18px}
+  .home-grid .carousel-controls .icon-button{width:40px;height:40px;min-width:40px}
+  .home-grid .bank-card{min-height:164px}
+  .home-grid .goal-home-title{min-height:76px}
+  .home-grid .goal-home-title h3{font-size:24px}
+  .home-grid .account-chips>button{min-height:66px}
+  .home-support{margin-top:25px}
+  .home-support .quick-entry>.flex-between{flex-wrap:wrap;gap:8px}
+  .home-support .quick-entry>.flex-between>.text-button{min-height:40px}
+  .auth-page{padding-inline:20px}
+  .auth-main{gap:24px}
+  .auth-story h1{font-size:29px}
+  .auth-story .eyebrow{font-size:10px}
+  .auth-card{padding:24px}
+  .auth-card h2{font-size:25px}
+  .auth-card .auth-note{font-size:12px}
+  .mobile-dock{border-radius:23px;box-shadow:0 8px 24px #0003;background:var(--surface)}
+}
+@media(max-width:360px){
+  .brand{font-size:18px;gap:7px}
+  .brand-mark{width:31px;height:31px}
+  .brand-mark svg{width:25px;height:25px}
+  .finance-overview h1{font-size:25px}
+  .finance-overview>.wallet-scene{width:88px;height:95px;top:28px}
+  .home-grid .panel{padding:18px}
+  .auth-page{padding-inline:14px}
+  .auth-card{padding:21px}
+}
+@media(prefers-reduced-motion:reduce){.wallet-depth,.wallet-object{transform:none!important}.wallet-object img{animation:none!important}}
+:root[data-motion=reduced] .wallet-depth,:root[data-motion=reduced] .wallet-object{transform:none!important}
+:root[data-motion=reduced] .wallet-object img,:root[data-motion=reduced] .home-grid>.panel{animation:none!important}
+@media(forced-colors:active){.brand-mark,.button,.panel,.mobile-dock{border:1px solid CanvasText}.wallet-orbit{display:none}.skip-link{background:Canvas;color:CanvasText}}
