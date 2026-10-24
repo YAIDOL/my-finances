@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DeleteFinanceItem } from '../components/DeleteFinanceItem';
 import { Archive, Landmark, ArrowDownLeft, ArrowUpRight, Check, Scale } from 'lucide-react';
 import { AddButton, Amount, Empty, PageTitle, Modal, type ViewProps, type Mutate } from '../components/ui';
 import { ReconcileAccount } from '../components/ReconcileAccount';
@@ -17,8 +18,9 @@ export function Accounts({state,mutate,hide,busy}:ViewProps){
    <div className="account-money-actions"><button className="button primary" disabled={busy} onClick={()=>setOperation({id:a.id,kind:'income'})}><ArrowDownLeft size={17}/> Додати гроші</button><button className="button secondary" disabled={busy} onClick={()=>setOperation({id:a.id,kind:'expense'})}><ArrowUpRight size={17}/> Списати гроші</button></div>
    <button className="text-button account-reconcile" disabled={busy} onClick={()=>setReconcile(a.id)}><Scale size={16}/> Звірити баланс</button>
    <button className="text-button muted" disabled={busy} onClick={()=>mutate(s=>archiveAccount(s,a.id),'Рахунок архівовано')}><Archive size={15}/> Архівувати порожній рахунок</button>
+   <DeleteFinanceItem {...{state,mutate,hide,busy}} target={{kind:'account',id:a.id}} name={a.name}/>
   </article>)}</div>:<Empty title="Тут будуть твої рахунки" description="Створи картку, готівковий або ощадний рахунок. Вкажи, скільки грошей уже є на ньому."/>}
-  {state.accounts.some(a=>a.archived)&&<section className="panel" style={{padding:24,marginTop:24}}><h2>Архівні рахунки</h2>{state.accounts.filter(a=>a.archived).map(a=><div className="flex-between" key={a.id}><span>{a.name}</span><button className="text-button" disabled={busy} onClick={()=>mutate(s=>reactivateAccount(s,a.id),'Рахунок повернуто')}>Повернути до активних</button></div>)}</section>}
+  {state.accounts.some(a=>a.archived)&&<section className="panel" style={{padding:24,marginTop:24}}><h2>Архівні рахунки</h2>{state.accounts.filter(a=>a.archived).map(a=><div className="flex-between" key={a.id}><span>{a.name}</span><div className="row-actions"><button className="text-button" disabled={busy} onClick={()=>mutate(s=>reactivateAccount(s,a.id),'Рахунок повернуто')}>Повернути до активних</button><DeleteFinanceItem {...{state,mutate,hide,busy}} target={{kind:'account',id:a.id}} name={a.name} compact/></div></div>)}</section>}
   {reconcile&&<ReconcileAccount state={state} mutate={mutate} hide={hide} accountId={reconcile} onClose={()=>setReconcile('')}/>}
   {open&&<AccountCreator mutate={mutate} hide={hide} onClose={()=>setOpen(false)}/>}
   {operation&&<TransactionEditor open onClose={()=>setOperation(null)} initialKind={operation.kind} initialAccountId={operation.id} state={state} mutate={mutate} hide={hide}/>}
