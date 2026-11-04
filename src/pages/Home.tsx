@@ -5,6 +5,7 @@ import { BudgetWarnings } from '../components/BudgetWarnings';
 import { DailySummary } from '../components/DailyWidgets';
 import { CashAccount } from '../components/CashAccount';
 import { WalletScene } from '../components/WalletScene';
+import { FundsSummary } from '../components/FundsSummary';
 import { Amount, Empty, LinkButton, Progress, Shield, TransactionRow, Modal, type ViewProps } from '../components/ui';
 import { accountBalance, currentMonth, goalSaved, totals } from '../lib/finance';
 
@@ -23,9 +24,10 @@ export function Home(props: ViewProps & { onRecord: (kind: 'expense' | 'income')
         <div className="eyebrow"><span className="tiny-line"/>Огляд · {month}</div>
         <h1>Твої фінанси у балансі.</h1>
         <button className="balance-button" onClick={() => setDetails(true)}>
-          <span>Загальний баланс</span><Amount value={total.balance} hide={hide}/>
-          <small>Переглянути розподіл <ChevronRight size={14}/></small>
+          <span>Бюджет для витрат</span><Amount value={total.available} hide={hide}/>
+          <small>Без відкладень і резервів · Деталі <ChevronRight size={14}/></small>
         </button>
+        <FundsSummary funds={total} hide={hide} compact/>
         <div className="hero-stats">
           <div><span><ArrowDownLeft size={15}/>Надійшло за місяць</span><Amount value={total.income} hide={hide} className="positive"/></div>
           <div><span><ArrowUpRight size={15}/>Витрачено за місяць</span><Amount value={total.expense} hide={hide} className="negative"/></div>

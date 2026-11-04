@@ -78,6 +78,17 @@ input::placeholder,textarea::placeholder{color:var(--subtle);opacity:1}
 .home-support .quick-entry .text-button,.home-support .quick-entry>p{font-size:12px}
 .home-support .home-reminders,.home-support .budget-warnings{box-shadow:none}
 .home-money-actions{display:flex;gap:10px;flex-wrap:wrap}
+.funds-summary{margin-bottom:24px;min-width:0}
+.funds-summary h2{font-size:16px;margin-bottom:18px}
+.funds-summary dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:0}
+.funds-summary dl>div{min-width:0}
+.funds-summary dt{font-size:12px;line-height:1.6;color:var(--muted)}
+.funds-summary dd{margin:7px 0 0;font-size:26px;font-weight:700;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.funds-summary dl>div:first-child dd{color:var(--blue)}
+.funds-summary>p{margin-top:18px;font-size:12px;color:var(--muted);max-width:850px}
+.funds-summary.compact{margin:18px 0 0;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);max-width:460px}
+.funds-summary.compact dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.funds-summary.compact dd{font-size:19px;color:var(--text)}
 .home-money-actions .button{min-height:46px;padding:12px 16px;font-size:13px}
 .debt-direction{font-size:12px;color:var(--muted);margin-top:15px}
 .debt-card:focus{outline:3px solid var(--blue);outline-offset:4px}
@@ -149,6 +160,13 @@ input::placeholder,textarea::placeholder{color:var(--subtle);opacity:1}
   .auth-story-foot{display:none}
 }
 @media(max-width:700px) {
+  .funds-summary:not(.compact) dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  .funds-summary:not(.compact) dl>div:first-child{grid-column:1/-1}
+  .funds-summary:not(.compact) dl>div:first-child dd{font-size:32px}
+  .funds-summary dd{font-size:22px}
+  .funds-summary.compact dl{gap:14px}
+  .funds-summary.compact dt{font-size:11px}
+  .funds-summary.compact dd{font-size:18px}
   .main-nav.mobile-open>a,.main-nav.mobile-open>.nav-add,.main-nav.mobile-open .more-menu>button{display:none}
   .main-nav.mobile-open .more-popover{padding:0}
   .home-money-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
